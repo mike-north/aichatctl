@@ -1,0 +1,7 @@
+node_modules
+dist
+temp
+coverage
+pnpm-lock.yaml
+packages/sdk/docs
+packages/sdk/api-report

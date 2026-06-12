@@ -1,0 +1,14 @@
+{
+  "name": "aichatctl-marketplace",
+  "owner": {
+    "name": "Mike North",
+    "email": "michael.l.north@gmail.com"
+  },
+  "plugins": [
+    {
+      "name": "aichatctl",
+      "source": "./plugins/aichatctl",
+      "description": "Sync repo files into Claude.ai/ChatGPT project libraries and seed voice-ready chat sessions via the Chrome DevTools Protocol."
+    }
+  ]
+}

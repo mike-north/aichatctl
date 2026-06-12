@@ -1,0 +1,32 @@
+{
+  "name": "@aichatctl/sdk",
+  "version": "0.1.0",
+  "description": "Core engine for driving the Claude.ai and ChatGPT web UIs: CDP attach, platform drivers, and the file-sync engine.",
+  "license": "MIT",
+  "author": "Mike North <michael.l.north@gmail.com>",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/sdk.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "types": "./dist/sdk.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc --build",
+    "api": "api-extractor run --local && api-documenter markdown -i temp -o docs",
+    "api:check": "api-extractor run"
+  },
+  "devDependencies": {
+    "@microsoft/api-documenter": "^7.26.0",
+    "@microsoft/api-extractor": "^7.58.0",
+    "@types/js-yaml": "^4.0.9"
+  },
+  "dependencies": {
+    "fast-glob": "^3.3.2",
+    "js-yaml": "^4.1.0",
+    "playwright-core": "^1.49.1",
+    "zod": "^3.24.1"
+  }
+}

@@ -1,0 +1,20 @@
+# aichatctl manifest — copy to `aichatctl.config.yaml` at your repo root and edit.
+#
+# Declares, per platform, the target web project plus which local files and
+# instructions to mirror into its file library. Relative paths/globs resolve
+# against this file's directory.
+
+platforms:
+  claude:
+    # Project name as shown in the UI, or a project URL/id.
+    project: "Product Spec Workspace"
+    # Optional: a markdown file whose contents become the project instructions.
+    instructions: docs/project-instructions.md
+    files:
+      - docs/specs/**/*.md
+      - README.md
+
+  chatgpt:
+    project: "https://chatgpt.com/g/g-p-XXXXXXXX/project"
+    files:
+      - docs/specs/**/*.md

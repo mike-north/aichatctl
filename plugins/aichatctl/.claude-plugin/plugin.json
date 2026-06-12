@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "0.1.0",
+  "name": "aichatctl",
+  "description": "Sync repo files into Claude.ai/ChatGPT project libraries and seed voice-ready chat sessions, by driving the web UIs over the Chrome DevTools Protocol.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Mike North",
+    "email": "michael.l.north@gmail.com"
+  },
+  "keywords": ["claude.ai", "chatgpt", "automation", "projects", "cdp", "playwright"]
+}

@@ -1,0 +1,19 @@
+{
+  "name": "aichatctl",
+  "version": "0.1.0",
+  "description": "CLI to drive the Claude.ai and ChatGPT web UIs: sync project files and seed chat sessions.",
+  "license": "MIT",
+  "author": "Mike North <michael.l.north@gmail.com>",
+  "type": "module",
+  "bin": {
+    "aichatctl": "dist/bin.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc --build"
+  },
+  "dependencies": {
+    "@aichatctl/sdk": "workspace:*",
+    "commander": "^13.0.0"
+  }
+}
