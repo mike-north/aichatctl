@@ -14,7 +14,7 @@ export default tseslint.config(
       "packages/sdk/docs/**",
       "packages/sdk/api-report/**",
       "eslint.config.js",
-      "jest.config.js",
+      "vitest.config.ts",
     ],
   },
   eslint.configs.recommended,

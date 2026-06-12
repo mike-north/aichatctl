@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { afterEach, beforeEach, describe, expect, it } from "@jest/globals";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { ConfigError } from "../errors.js";
 import { hashContent } from "./hash.js";

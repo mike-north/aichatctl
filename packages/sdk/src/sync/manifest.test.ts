@@ -3,7 +3,7 @@
  *
  * @see Manifest schema in manifest.ts (aichatctl.config.yaml format)
  */
-import { describe, expect, it } from "@jest/globals";
+import { describe, expect, it } from "vitest";
 
 import { ConfigError } from "../errors.js";
 import { manifestForPlatform, parseManifest } from "./manifest.js";

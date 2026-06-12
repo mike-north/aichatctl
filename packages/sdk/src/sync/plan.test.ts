@@ -9,7 +9,7 @@
  *  - untracked remote copy of a desired file -> replace (refresh to source of truth)
  *  - manually-added remote files (not tracked, not desired) -> never touched
  */
-import { describe, expect, it } from "@jest/globals";
+import { describe, expect, it } from "vitest";
 
 import { computePlan, planHasChanges } from "./plan.js";
 import type { DesiredFile } from "./plan.js";

@@ -13,7 +13,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --forceExit",
+    "test": "vitest run",
     "api": "pnpm --filter @aichatctl/sdk run api",
     "plugin:build": "aipm build",
     "plugin:validate": "aipm validate"
@@ -22,17 +22,14 @@
     "@ai-plugin-marketplace/cli": "^0.2.0",
     "@ai-plugin-marketplace/core": "^0.3.0",
     "@eslint/js": "^9.17.0",
-    "@jest/globals": "^29.7.0",
-    "@types/jest": "^29.5.14",
     "@types/node": "^24.0.0",
     "eslint": "^9.17.0",
     "eslint-config-prettier": "^9.1.0",
-    "jest": "^29.7.0",
     "prettier": "^3.4.2",
     "rimraf": "^6.0.1",
-    "ts-jest": "^29.2.5",
     "tsd": "^0.31.2",
     "typescript": "^5.7.2",
-    "typescript-eslint": "^8.18.0"
+    "typescript-eslint": "^8.18.0",
+    "vitest": "^3.0.0"
   }
 }
