@@ -205,6 +205,7 @@ export function buildProgram(io: IO = defaultIO): Command {
     .option("--seed-file <path>", 'read seed prompt from a file ("-" for stdin)')
     .option("--no-send", "stage the prompt without submitting it")
     .option("--transport <t>", "cdp | extension", parseTransport, "cdp")
+    .option("--background", "extension transport: seed in a background tab via chrome.debugger", false)
     .option("--bridge-port <port>", "bridge port (extension transport)", parsePort, DEFAULT_BRIDGE_PORT)
     .option("--token <token>", "bridge token (extension transport)")
     .option("--json", "machine-readable output", false)
@@ -216,6 +217,7 @@ export function buildProgram(io: IO = defaultIO): Command {
         seedFile?: string;
         send: boolean;
         transport: Transport;
+        background: boolean;
         bridgePort: number;
         token?: string;
         port: number;
@@ -232,6 +234,7 @@ export function buildProgram(io: IO = defaultIO): Command {
                 project: opts.project,
                 prompt,
                 send: opts.send,
+                background: opts.background,
                 bridgePort: opts.bridgePort,
                 ...(opts.token !== undefined ? { token: opts.token } : {}),
               })

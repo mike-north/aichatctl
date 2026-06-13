@@ -55,6 +55,8 @@ export interface SeedViaExtensionOptions {
   readonly project: string;
   readonly prompt: string;
   readonly send: boolean;
+  /** Use the chrome.debugger path (trusted input, background tab). */
+  readonly background?: boolean;
   /** Bridge daemon port. */
   readonly bridgePort?: number;
   /** Shared bridge token, if the daemon requires one. */
@@ -76,6 +78,7 @@ export async function createSeededSessionViaExtension(
       project: options.project,
       prompt: options.prompt,
       send: options.send,
+      background: options.background ?? false,
     },
     {
       ...(options.bridgePort !== undefined ? { port: options.bridgePort } : {}),

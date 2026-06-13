@@ -116,28 +116,144 @@ async function waitForComplete(tabId, timeoutMs = 20000) {
 }
 
 async function seedSession(params) {
-  const { platform, project, prompt, send } = params;
+  const { platform, project, prompt, send, background } = params;
   if (!platform || !project || !prompt) {
     return { ok: false, error: "seedSession requires platform, project, prompt" };
   }
   const url = projectUrl(platform, project);
-  // active:true so the page is focused — execCommand-based text entry needs an
-  // active document. (Background/unattended seeding will use chrome.debugger.)
+  if (background) {
+    return seedViaDebugger({ platform, url, prompt, send: !!send });
+  }
+  return seedViaScripting({ platform, url, prompt, send: !!send });
+}
+
+/** Foreground path: page scripting in an active tab (no debugger infobar). */
+async function seedViaScripting({ platform, url, prompt, send }) {
   const tab = await chrome.tabs.create({ url, active: true });
   await waitForComplete(tab.id);
-  // Give the SPA a moment to hydrate the composer.
   await new Promise((r) => setTimeout(r, 1500));
 
   const [{ result } = {}] = await chrome.scripting.executeScript({
     target: { tabId: tab.id },
-    args: [platform, prompt, !!send],
+    args: [platform, prompt, send],
     func: seedInPage,
   });
 
   if (!result || !result.ok) {
     return { ok: false, error: (result && result.error) || "seedInPage returned no result" };
   }
-  return { ok: true, data: { url: result.url, sent: !!send } };
+  return { ok: true, data: { url: result.url, sent: send } };
+}
+
+// --- chrome.debugger (CDP) path: trusted input, works in a background tab ------
+
+function cdp(tabId, method, params) {
+  return new Promise((resolve, reject) => {
+    chrome.debugger.sendCommand({ tabId }, method, params || {}, (res) => {
+      const err = chrome.runtime.lastError;
+      if (err) reject(new Error(`${method}: ${err.message}`));
+      else resolve(res);
+    });
+  });
+}
+
+function attachDebugger(tabId) {
+  return new Promise((resolve, reject) => {
+    chrome.debugger.attach({ tabId }, "1.3", () => {
+      const err = chrome.runtime.lastError;
+      if (err) reject(new Error(`attach: ${err.message}`));
+      else resolve();
+    });
+  });
+}
+
+function detachDebugger(tabId) {
+  return new Promise((resolve) => {
+    chrome.debugger.detach({ tabId }, () => {
+      void chrome.runtime.lastError; // ignore if already detached
+      resolve();
+    });
+  });
+}
+
+/** Evaluates an expression in the page via CDP and returns its value. */
+async function cdpEval(tabId, expression) {
+  const res = await cdp(tabId, "Runtime.evaluate", {
+    expression,
+    returnByValue: true,
+    awaitPromise: true,
+  });
+  if (res && res.exceptionDetails) {
+    throw new Error(res.exceptionDetails.text || "evaluate failed");
+  }
+  return res && res.result ? res.result.value : undefined;
+}
+
+/**
+ * Background path: attach CDP, focus the composer, type trusted text via
+ * Input.insertText (no OS focus required), click send, read the URL, detach.
+ */
+async function seedViaDebugger({ platform, url, prompt, send }) {
+  const tab = await chrome.tabs.create({ url, active: false });
+  await waitForComplete(tab.id);
+  await new Promise((r) => setTimeout(r, 1500));
+
+  const composerSel =
+    platform === "claude"
+      ? ['div[contenteditable="true"]', "textarea"]
+      : ["#prompt-textarea", 'div[contenteditable="true"]', "textarea"];
+  const sendSel =
+    platform === "claude"
+      ? ['button[aria-label="Send message" i]', '[data-testid="send-button"]', 'button[aria-label*="send" i]']
+      : ['[data-testid="send-button"]', 'button[aria-label*="send" i]'];
+
+  await attachDebugger(tab.id);
+  try {
+    // Focus the composer inside the page (works regardless of tab activation).
+    const focused = await cdpEval(
+      tab.id,
+      `(function(){
+        var sels=${JSON.stringify(composerSel)};
+        for (var i=0;i<sels.length;i++){var el=document.querySelector(sels[i]);
+          if(el){el.focus(); return true;}}
+        return false;
+      })()`,
+    );
+    if (!focused) {
+      return { ok: false, error: "composer not found (selectors need calibration)" };
+    }
+
+    // Trusted text insertion into the focused editable.
+    await cdp(tab.id, "Input.insertText", { text: prompt });
+    await new Promise((r) => setTimeout(r, 300));
+
+    if (!send) {
+      const url0 = await cdpEval(tab.id, "location.href");
+      return { ok: true, data: { url: url0, sent: false } };
+    }
+
+    const startUrl = await cdpEval(tab.id, "location.href");
+    await cdpEval(
+      tab.id,
+      `(function(){
+        var sels=${JSON.stringify(sendSel)};
+        for (var i=0;i<sels.length;i++){var b=document.querySelector(sels[i]);
+          if(b){b.click(); return true;}}
+        return false;
+      })()`,
+    );
+
+    const deadline = Date.now() + 12000;
+    let finalUrl = startUrl;
+    while (Date.now() < deadline) {
+      finalUrl = await cdpEval(tab.id, "location.href");
+      if (finalUrl !== startUrl && /\/(chat|c)\//.test(finalUrl)) break;
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    return { ok: true, data: { url: finalUrl, sent: true } };
+  } finally {
+    await detachDebugger(tab.id);
+  }
 }
 
 /**
