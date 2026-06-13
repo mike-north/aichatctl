@@ -3,7 +3,7 @@
   "name": "aichatctl bridge",
   "version": "0.1.0",
   "description": "Deterministic automation bridge for Claude.ai and ChatGPT projects (drives your real, logged-in session).",
-  "permissions": ["scripting", "tabs", "debugger"],
+  "permissions": ["scripting", "tabs", "debugger", "alarms"],
   "host_permissions": [
     "https://claude.ai/*",
     "https://chatgpt.com/*",

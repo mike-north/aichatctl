@@ -80,6 +80,18 @@ function scheduleReconnect() {
   }, 2000);
 }
 
+/**
+ * Connect only if not already open/connecting. Called both by the fast
+ * setTimeout path (while the worker is alive) and by the alarm (which wakes a
+ * suspended worker), so the extension self-heals after daemon restarts / sleep.
+ */
+function ensureConnected() {
+  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+    return;
+  }
+  connect();
+}
+
 async function runCommand(msg) {
   const p = msg.params || {};
   switch (msg.action) {
@@ -643,4 +655,14 @@ async function seedInPage(platform, prompt, send) {
   return { ok: true, url: location.href };
 }
 
-connect();
+// Keepalive: an alarm wakes the (possibly suspended) service worker on a
+// schedule so it reconnects without a manual reload. 0.5 min is Chrome's floor.
+const KEEPALIVE_ALARM = "aichatctl-keepalive";
+chrome.alarms.create(KEEPALIVE_ALARM, { periodInMinutes: 0.5 });
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === KEEPALIVE_ALARM) ensureConnected();
+});
+chrome.runtime.onStartup.addListener(ensureConnected);
+chrome.runtime.onInstalled.addListener(ensureConnected);
+
+ensureConnected();
