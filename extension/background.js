@@ -380,42 +380,104 @@ function buildProjectUrl(platform, id) {
 }
 
 async function listProjects(params) {
-  const { platform } = params;
-  const tabId = await getProjectTab(PROJECTS_URL[platform]);
-  // Reload so a reused tab reflects projects created since it was opened.
-  await chrome.tabs.reload(tabId);
-  await waitForComplete(tabId);
-  await sleep(1000);
-  const raw = await runInTab(
-    tabId,
-    (plat) => {
-      const sel = plat === "claude" ? 'a[href^="/project/"]' : 'a[href*="/g/g-p-"]';
-      const seen = new Set();
-      const out = [];
-      document.querySelectorAll(sel).forEach((a) => {
-        const href = a.getAttribute("href") || "";
-        const m =
-          plat === "claude" ? href.match(/\/project\/([^/?#]+)/) : href.match(/\/g\/(g-p-[^/?#]+)/);
-        const id = m && m[1];
-        if (!id || seen.has(id)) return;
-        seen.add(id);
-        out.push({ id, name: (a.innerText || "").trim().split("\n")[0] });
-      });
-      return out;
-    },
-    [platform],
-  );
-  return { ok: true, data: raw.map((p) => ({ id: p.id, name: p.name, url: buildProjectUrl(platform, p.id) })) };
+  return params.platform === "chatgpt" ? listProjectsChatgpt() : listProjectsClaude();
 }
 
 async function resolveProject(params) {
-  const { platform, ref } = params;
-  const list = (await listProjects(params)).data;
+  return params.platform === "chatgpt"
+    ? resolveProjectChatgpt(params.ref)
+    : resolveProjectClaude(params.ref);
+}
+
+// --- Claude: projects render as <a href="/project/ID"> links --------------------
+
+async function listProjectsClaude() {
+  const tabId = await getProjectTab(PROJECTS_URL.claude);
+  await chrome.tabs.reload(tabId);
+  await waitForComplete(tabId);
+  await sleep(1000);
+  const raw = await runInTab(tabId, () => {
+    const seen = new Set();
+    const out = [];
+    document.querySelectorAll('a[href^="/project/"]').forEach((a) => {
+      const m = (a.getAttribute("href") || "").match(/\/project\/([^/?#]+)/);
+      const id = m && m[1];
+      if (!id || seen.has(id)) return;
+      seen.add(id);
+      out.push({ id, name: (a.innerText || "").trim().split("\n")[0] });
+    });
+    return out;
+  });
+  return { ok: true, data: raw.map((p) => ({ id: p.id, name: p.name, url: buildProjectUrl("claude", p.id) })) };
+}
+
+async function resolveProjectClaude(ref) {
+  const list = (await listProjectsClaude()).data;
   const match =
     list.find((p) => p.name === ref) ||
     list.find((p) => (p.name || "").toLowerCase() === (ref || "").toLowerCase());
-  if (!match) return { ok: false, error: `No project matching "${ref}" on ${platform}` };
+  if (!match) return { ok: false, error: `No project matching "${ref}" on claude` };
   return { ok: true, data: match };
+}
+
+// --- ChatGPT: projects render as buttons; the URL appears only after opening ----
+
+const CHATGPT_OPTIONS_PREFIX = "Open project options for ";
+
+async function listProjectsChatgpt() {
+  const tabId = await getProjectTab("https://chatgpt.com");
+  await chrome.tabs.reload(tabId);
+  await waitForComplete(tabId);
+  await sleep(1200);
+  const names = await runInTab(tabId, (prefix) => {
+    const out = [];
+    document.querySelectorAll('button[aria-label^="' + prefix + '"]').forEach((b) => {
+      out.push((b.getAttribute("aria-label") || "").slice(prefix.length).trim());
+    });
+    return out;
+  }, [CHATGPT_OPTIONS_PREFIX]);
+  // Names only; the project URL requires navigating in (see resolveProjectChatgpt).
+  return { ok: true, data: names.filter(Boolean).map((name) => ({ id: "", name, url: "" })) };
+}
+
+async function resolveProjectChatgpt(ref) {
+  const tabId = await getProjectTab("https://chatgpt.com");
+  await chrome.tabs.reload(tabId);
+  await waitForComplete(tabId);
+  await sleep(1200);
+  await attachDebugger(tabId);
+  try {
+    const startUrl = await cdpEval(tabId, "location.href");
+    const clicked = await cdpEval(
+      tabId,
+      `(function(){
+        var name=${JSON.stringify(ref)}.toLowerCase();
+        var prefix=${JSON.stringify(CHATGPT_OPTIONS_PREFIX)};
+        var opts=Array.from(document.querySelectorAll('button[aria-label^="'+prefix+'"]'));
+        var target=opts.find(function(b){return (b.getAttribute("aria-label")||"").slice(prefix.length).trim().toLowerCase()===name;});
+        if(!target) return "NOT_FOUND";
+        var container=target.parentElement;
+        var home=null;
+        for(var i=0;i<6&&container;i++){home=container.querySelector('button[aria-label="Open project home"]');if(home)break;container=container.parentElement;}
+        if(!home) return "NO_HOME";
+        home.click();
+        return "clicked";
+      })()`,
+    );
+    if (clicked !== "clicked") return { ok: false, error: `No project matching "${ref}" on chatgpt (${clicked})` };
+    let url = startUrl;
+    const deadline = Date.now() + 10000;
+    while (Date.now() < deadline) {
+      url = await cdpEval(tabId, "location.href");
+      if (/\/g\/g-p-/.test(url)) break;
+      await sleep(250);
+    }
+    const m = url.match(/\/g\/(g-p-[^/?#]+)/);
+    if (!m) return { ok: false, error: "opened project but no project id in URL" };
+    return { ok: true, data: { id: m[1], name: ref, url: `https://chatgpt.com/g/${m[1]}/project` } };
+  } finally {
+    await detachDebugger(tabId);
+  }
 }
 
 async function getProjectInstructions(params) {
