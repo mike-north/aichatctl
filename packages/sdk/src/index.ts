@@ -37,3 +37,10 @@ export { doctor } from "./doctor.js";
 export type { DoctorReport, DoctorOptions } from "./doctor.js";
 
 export * from "./service.js";
+
+export { BridgeServer } from "./bridge/server.js";
+export type { BridgeServerOptions } from "./bridge/server.js";
+export { sendBridgeCommand, BridgeError } from "./bridge/client.js";
+export type { BridgeCommandOptions } from "./bridge/client.js";
+export { DEFAULT_BRIDGE_PORT } from "./bridge/protocol.js";
+export type { CommandMessage, ResultMessage, BridgeMessage } from "./bridge/protocol.js";

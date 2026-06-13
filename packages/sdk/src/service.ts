@@ -1,9 +1,12 @@
 import { readFileSync } from "node:fs";
 
+import { z } from "zod";
+
+import { sendBridgeCommand } from "./bridge/client.js";
 import { BrowserSession } from "./browser/session.js";
 import { DEFAULT_CDP_PORT } from "./config.js";
 import { createDriver } from "./drivers/factory.js";
-import { NotLoggedInError } from "./errors.js";
+import { AichatctlError, NotLoggedInError } from "./errors.js";
 import { loadManifest, manifestForPlatform } from "./sync/manifest.js";
 import { syncPlatform } from "./sync/sync.js";
 import type { SyncReport } from "./sync/sync.js";
@@ -41,6 +44,49 @@ export async function createSeededSession(options: SeedSessionOptions): Promise<
   } finally {
     await session.close();
   }
+}
+
+const seedResultSchema = z.object({ url: z.string(), sent: z.boolean() });
+
+/** Options for {@link createSeededSessionViaExtension}. */
+export interface SeedViaExtensionOptions {
+  readonly platform: Platform;
+  /** Project name or URL — resolved inside the browser by the extension. */
+  readonly project: string;
+  readonly prompt: string;
+  readonly send: boolean;
+  /** Bridge daemon port. */
+  readonly bridgePort?: number;
+  /** Shared bridge token, if the daemon requires one. */
+  readonly token?: string;
+}
+
+/**
+ * Creates a seeded session by driving the user's real Chrome through the
+ * in-browser extension over the bridge — using the real logged-in session and
+ * extensions, with no CDP remote-debugging port required.
+ */
+export async function createSeededSessionViaExtension(
+  options: SeedViaExtensionOptions,
+): Promise<SeedResult> {
+  const data = await sendBridgeCommand(
+    "seedSession",
+    {
+      platform: options.platform,
+      project: options.project,
+      prompt: options.prompt,
+      send: options.send,
+    },
+    {
+      ...(options.bridgePort !== undefined ? { port: options.bridgePort } : {}),
+      ...(options.token !== undefined ? { token: options.token } : {}),
+    },
+  );
+  const parsed = seedResultSchema.safeParse(data);
+  if (!parsed.success) {
+    throw new AichatctlError(`Extension returned an unexpected seedSession result: ${JSON.stringify(data)}`);
+  }
+  return parsed.data;
 }
 
 /** Reads a prompt from a file, or from stdin when path is "-". */

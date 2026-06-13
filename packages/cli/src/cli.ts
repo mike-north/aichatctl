@@ -2,9 +2,12 @@ import { Command, CommanderError, InvalidArgumentError } from "commander";
 
 import {
   AichatctlError,
+  BridgeServer,
+  DEFAULT_BRIDGE_PORT,
   DEFAULT_CDP_PORT,
   PLATFORMS,
   createSeededSession,
+  createSeededSessionViaExtension,
   doctor,
   launchChrome,
   listProjects,
@@ -42,6 +45,15 @@ function parsePort(value: string): number {
   return n;
 }
 
+type Transport = "cdp" | "extension";
+
+function parseTransport(value: string): Transport {
+  if (value === "cdp" || value === "extension") {
+    return value;
+  }
+  throw new InvalidArgumentError("transport must be 'cdp' or 'extension'");
+}
+
 function emit(io: IO, json: boolean, human: string, data: unknown): void {
   io.out(json ? JSON.stringify(data, null, 2) : human);
 }
@@ -75,6 +87,38 @@ export function buildProgram(io: IO = defaultIO): Command {
       io.out(`Launched Chrome (pid ${String(result.pid ?? "?")}) on port ${String(opts.port)}.`);
       io.out(`Profile: ${result.userDataDir}`);
       io.out("If this is the first launch, sign in to claude.ai and chatgpt.com in that window.");
+    });
+
+  // bridge serve ---------------------------------------------------------------
+  const bridge = program.command("bridge").description("Run the localhost bridge to the browser extension");
+  bridge
+    .command("serve")
+    .description("Start the long-running bridge daemon the extension connects to")
+    .option("--bridge-port <port>", "bridge port", parsePort, DEFAULT_BRIDGE_PORT)
+    .option("--token <token>", "shared secret the extension must present")
+    .action(async (opts: { bridgePort: number; token?: string }) => {
+      const server = new BridgeServer({
+        port: opts.bridgePort,
+        log: (line) => {
+          io.err(line);
+        },
+        ...(opts.token !== undefined ? { token: opts.token } : {}),
+      });
+      await server.start();
+      io.out(`Bridge daemon listening on 127.0.0.1:${String(opts.bridgePort)}.`);
+      io.out("Load the aichatctl extension in Chrome; it will connect automatically.");
+      if (opts.token === undefined) {
+        io.err("warning: no --token set; any local process can drive the extension.");
+      }
+      // Block until interrupted so the daemon stays up.
+      await new Promise<void>((resolve) => {
+        process.on("SIGINT", () => {
+          void server.stop().then(resolve);
+        });
+        process.on("SIGTERM", () => {
+          void server.stop().then(resolve);
+        });
+      });
     });
 
   // doctor ---------------------------------------------------------------------
@@ -160,6 +204,9 @@ export function buildProgram(io: IO = defaultIO): Command {
     .option("--seed <text>", "seed prompt text")
     .option("--seed-file <path>", 'read seed prompt from a file ("-" for stdin)')
     .option("--no-send", "stage the prompt without submitting it")
+    .option("--transport <t>", "cdp | extension", parseTransport, "cdp")
+    .option("--bridge-port <port>", "bridge port (extension transport)", parsePort, DEFAULT_BRIDGE_PORT)
+    .option("--token <token>", "bridge token (extension transport)")
     .option("--json", "machine-readable output", false)
     .action(
       async (opts: {
@@ -168,6 +215,9 @@ export function buildProgram(io: IO = defaultIO): Command {
         seed?: string;
         seedFile?: string;
         send: boolean;
+        transport: Transport;
+        bridgePort: number;
+        token?: string;
         port: number;
         json: boolean;
       }) => {
@@ -175,13 +225,23 @@ export function buildProgram(io: IO = defaultIO): Command {
         if (prompt === undefined || prompt.trim().length === 0) {
           throw new AichatctlError("Provide a non-empty --seed or --seed-file.");
         }
-        const result = await createSeededSession({
-          platform: opts.platform,
-          project: opts.project,
-          prompt,
-          send: opts.send,
-          port: opts.port,
-        });
+        const result =
+          opts.transport === "extension"
+            ? await createSeededSessionViaExtension({
+                platform: opts.platform,
+                project: opts.project,
+                prompt,
+                send: opts.send,
+                bridgePort: opts.bridgePort,
+                ...(opts.token !== undefined ? { token: opts.token } : {}),
+              })
+            : await createSeededSession({
+                platform: opts.platform,
+                project: opts.project,
+                prompt,
+                send: opts.send,
+                port: opts.port,
+              });
         emit(
           io,
           opts.json,

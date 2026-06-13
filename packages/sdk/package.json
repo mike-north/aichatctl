@@ -21,12 +21,14 @@
   "devDependencies": {
     "@microsoft/api-documenter": "^7.26.0",
     "@microsoft/api-extractor": "^7.58.0",
-    "@types/js-yaml": "^4.0.9"
+    "@types/js-yaml": "^4.0.9",
+    "@types/ws": "^8.5.13"
   },
   "dependencies": {
     "fast-glob": "^3.3.2",
     "js-yaml": "^4.1.0",
     "playwright-core": "^1.49.1",
+    "ws": "^8.18.0",
     "zod": "^3.24.1"
   }
 }

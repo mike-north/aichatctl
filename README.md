@@ -64,6 +64,34 @@ aichatctl session create --platform claude --project "My Project" --seed-file no
 Copy `aichatctl.config.example.yaml` to `aichatctl.config.yaml` and edit it to
 declare your projects and file globs.
 
+## Extension transport (drive your real Chrome)
+
+Chrome 136+ refuses `--remote-debugging-port` on your default profile, so the CDP
+path above uses a dedicated automation profile. To drive your **real, everyday
+Chrome** — with your existing logins and extensions — use the **extension
+transport** instead. It's still fully deterministic (fixed code in an MV3
+extension; no model in the loop, no tokens), and it sidesteps the debugging-port
+block entirely.
+
+```bash
+# 1. Start the bridge daemon (long-running)
+aichatctl bridge serve            # add --token <secret> to lock it down
+
+# 2. Load the unpacked extension in your real Chrome:
+#    chrome://extensions -> Developer mode -> Load unpacked -> ./extension
+#    (it connects to the bridge automatically)
+
+# 3. Seed a session through your real session:
+aichatctl session create --transport extension \
+  --platform claude --project "<url-or-id>" --seed-file notes.md --json
+```
+
+The extension opens the project in a tab, types your prompt via the page's own
+editor, and (unless `--no-send`) starts the conversation — ready to continue from
+the mobile app. Today the seed flow uses page scripting (opens an active tab);
+file-library sync and background/unattended seeding will use the `chrome.debugger`
+CDP path, which injects trusted input without needing tab focus.
+
 ## Claude Code plugin
 
 ```
