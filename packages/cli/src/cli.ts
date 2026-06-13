@@ -9,6 +9,7 @@ import {
   createSeededSession,
   createSeededSessionViaExtension,
   doctor,
+  sendBridgeCommand,
   launchChrome,
   listProjects,
   planHasChanges,
@@ -121,6 +122,26 @@ export function buildProgram(io: IO = defaultIO): Command {
       });
     });
 
+  bridge
+    .command("call <action>")
+    .description("Send a raw command to the connected extension (diagnostics)")
+    .option("--params <json>", "JSON params object", "{}")
+    .option("--bridge-port <port>", "bridge port", parsePort, DEFAULT_BRIDGE_PORT)
+    .option("--token <token>", "shared secret")
+    .action(async (action: string, opts: { params: string; bridgePort: number; token?: string }) => {
+      let params: unknown;
+      try {
+        params = JSON.parse(opts.params);
+      } catch {
+        throw new AichatctlError("--params must be valid JSON");
+      }
+      const data = await sendBridgeCommand(action, params, {
+        port: opts.bridgePort,
+        ...(opts.token !== undefined ? { token: opts.token } : {}),
+      });
+      io.out(JSON.stringify(data, null, 2));
+    });
+
   // doctor ---------------------------------------------------------------------
   portOption(program.command("doctor"))
     .description("Check CDP reachability, login state, and selector health")
@@ -163,12 +184,18 @@ export function buildProgram(io: IO = defaultIO): Command {
     .option("-c, --config <path>", "manifest path", "aichatctl.config.yaml")
     .option("--platform <platform>", "limit to one platform", parsePlatform)
     .option("--dry-run", "compute the plan without making changes", false)
+    .option("--transport <t>", "cdp | extension", parseTransport, "cdp")
+    .option("--bridge-port <port>", "bridge port (extension transport)", parsePort, DEFAULT_BRIDGE_PORT)
+    .option("--token <token>", "bridge token (extension transport)")
     .option("--json", "machine-readable output", false)
     .action(
       async (opts: {
         config: string;
         platform?: Platform;
         dryRun: boolean;
+        transport: Transport;
+        bridgePort: number;
+        token?: string;
         port: number;
         json: boolean;
       }) => {
@@ -176,6 +203,9 @@ export function buildProgram(io: IO = defaultIO): Command {
           configPath: opts.config,
           dryRun: opts.dryRun,
           port: opts.port,
+          transport: opts.transport,
+          bridgePort: opts.bridgePort,
+          ...(opts.token !== undefined ? { token: opts.token } : {}),
           ...(opts.platform ? { platforms: [opts.platform] } : {}),
         });
         const lines: string[] = [];

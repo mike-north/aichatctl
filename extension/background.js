@@ -22,6 +22,8 @@ function log(...args) {
   console.log("[aichatctl]", ...args);
 }
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
 function connect() {
   try {
     ws = new WebSocket(BRIDGE_URL);
@@ -79,11 +81,308 @@ function scheduleReconnect() {
 }
 
 async function runCommand(msg) {
+  const p = msg.params || {};
   switch (msg.action) {
     case "seedSession":
-      return seedSession(msg.params || {});
+      return seedSession(p);
+    case "selftest":
+      return selftest(p);
+    case "getProjectFiles":
+      return getProjectFiles(p);
+    case "uploadProjectFile":
+      return uploadProjectFile(p);
+    case "deleteProjectFile":
+      return deleteProjectFile(p);
+    case "getProjectInstructions":
+      return getProjectInstructions(p);
+    case "setProjectInstructions":
+      return setProjectInstructions(p);
+    case "reloadSelf":
+      // Re-read the unpacked extension from disk so code changes deploy without
+      // a manual chrome://extensions reload. Result is sent before reloading.
+      setTimeout(() => chrome.runtime.reload(), 500);
+      return { ok: true, data: { reloading: true } };
+    case "evalInProject":
+      return evalInProject(p);
+    case "inspectProject":
+      return inspectProject(p);
+    case "listProjects":
+    case "resolveProject":
+      return {
+        ok: false,
+        error: `${msg.action} by name is not yet supported via the extension; pass a project URL or id`,
+      };
     default:
       return { ok: false, error: `unknown action: ${msg.action}` };
+  }
+}
+
+// --- project file operations --------------------------------------------------
+
+// ⚠️ LIVE CALIBRATION REQUIRED — these selectors are best-effort.
+const PROJECT_SELECTORS = {
+  claude: {
+    // Library docs render as file-thumbnail cards (name is the first text line).
+    fileRow: ['[data-testid="file-thumbnail"]'],
+    // The project-library input is distinct from the composer attachment input.
+    fileInput: ['input[data-testid="project-doc-upload"]', 'input[type="file"]'],
+    deleteButton: ['button[aria-label*="delete" i]', 'button[aria-label*="remove" i]'],
+    instructions: ['textarea', 'div[contenteditable="true"][role="textbox"]'],
+  },
+  chatgpt: {
+    fileRow: ['[data-testid="project-file-row"]', '[data-testid*="file"]'],
+    fileInput: ['input[type="file"]'],
+    deleteButton: ['button[aria-label*="delete" i]', 'button[aria-label*="remove" i]', 'button[aria-label*="trash" i]'],
+    instructions: ['textarea', 'div[contenteditable="true"][role="textbox"]'],
+  },
+};
+
+const projectTabs = new Map();
+
+async function getProjectTab(url) {
+  const existing = projectTabs.get(url);
+  if (existing !== undefined) {
+    try {
+      const tab = await chrome.tabs.get(existing);
+      if (tab) return existing;
+    } catch {
+      /* tab gone; recreate */
+    }
+  }
+  const tab = await chrome.tabs.create({ url, active: true });
+  await waitForComplete(tab.id);
+  await sleep(1200);
+  projectTabs.set(url, tab.id);
+  return tab.id;
+}
+
+async function runInTab(tabId, func, args) {
+  const [{ result } = {}] = await chrome.scripting.executeScript({ target: { tabId }, func, args });
+  return result;
+}
+
+function selectorsFor(platform) {
+  const s = PROJECT_SELECTORS[platform];
+  if (!s) throw new Error(`unknown platform ${platform}`);
+  return s;
+}
+
+async function selftest(params) {
+  const { platform } = params;
+  const base = platform === "claude" ? "https://claude.ai" : "https://chatgpt.com";
+  const tabId = await getProjectTab(base);
+  const probes = await runInTab(
+    tabId,
+    (sels) => {
+      const has = (s) => !!document.querySelector(s);
+      const account = has('[data-testid="user-menu-button"]') || has('[data-testid="accounts-profile-button"]');
+      const login = has('[data-testid="login-button"]');
+      return {
+        loggedIn: account && !login,
+        probes: [{ name: "composer", ok: has(sels.composer) }],
+      };
+    },
+    [{ composer: platform === "claude" ? 'div[contenteditable="true"]' : "#prompt-textarea" }],
+  );
+  return { ok: true, data: probes };
+}
+
+async function getProjectFiles(params) {
+  const { platform, projectUrl } = params;
+  const sel = selectorsFor(platform);
+  const tabId = await getProjectTab(projectUrl);
+  const names = await runInTab(
+    tabId,
+    (rowSels) => {
+      for (const s of rowSels) {
+        const rows = document.querySelectorAll(s);
+        if (rows.length) {
+          return Array.from(rows)
+            .map((r) => (r.innerText || "").trim().split("\n")[0])
+            .filter(Boolean);
+        }
+      }
+      return [];
+    },
+    [sel.fileRow],
+  );
+  return { ok: true, data: names.map((name) => ({ name })) };
+}
+
+async function uploadProjectFile(params) {
+  const { platform, projectUrl, localPath } = params;
+  const sel = selectorsFor(platform);
+  const tabId = await getProjectTab(projectUrl);
+  await attachDebugger(tabId);
+  try {
+    // Find the (often hidden) file input and get a CDP objectId for it.
+    const objectId = await cdpEvalObjectId(
+      tabId,
+      `(function(){ var s=${JSON.stringify(sel.fileInput)};
+        for (var i=0;i<s.length;i++){var el=document.querySelector(s[i]); if(el) return el;} return null; })()`,
+    );
+    if (!objectId) {
+      return { ok: false, error: "file input not found (selectors need calibration)" };
+    }
+    await cdp(tabId, "DOM.setFileInputFiles", { files: [localPath], objectId });
+    await sleep(2000);
+    return { ok: true, data: {} };
+  } finally {
+    await detachDebugger(tabId);
+  }
+}
+
+async function deleteProjectFile(params) {
+  const { platform, projectUrl, name } = params;
+  const sel = selectorsFor(platform);
+  const tabId = await getProjectTab(projectUrl);
+  const res = await runInTab(
+    tabId,
+    (rowSels, delSels, target) => {
+      const findRow = () => {
+        for (const s of rowSels) {
+          for (const r of document.querySelectorAll(s)) {
+            if ((r.innerText || "").includes(target)) return r;
+          }
+        }
+        return null;
+      };
+      const row = findRow();
+      if (!row) return { ok: true, data: {}, note: "already absent" };
+      let btn = null;
+      for (const s of delSels) {
+        btn = row.querySelector(s) || document.querySelector(s);
+        if (btn) break;
+      }
+      if (!btn) return { ok: false, error: "delete control not found (selectors need calibration)" };
+      btn.click();
+      // Best-effort confirm.
+      setTimeout(() => {
+        for (const b of document.querySelectorAll("button")) {
+          if (/^(delete|remove|confirm)$/i.test((b.innerText || "").trim())) {
+            b.click();
+            break;
+          }
+        }
+      }, 400);
+      return { ok: true, data: {} };
+    },
+    [sel.fileRow, sel.deleteButton, name],
+  );
+  await sleep(1000);
+  return res;
+}
+
+/**
+ * Diagnostic: evaluates an arbitrary expression in the project tab via CDP
+ * (bypasses page CSP), returning the value. Lets the agent self-verify DOM
+ * state without adding a named command for every check.
+ */
+async function evalInProject(params) {
+  const { projectUrl, expression } = params;
+  if (!expression) return { ok: false, error: "evalInProject requires an expression" };
+  const tabId = await getProjectTab(projectUrl);
+  await attachDebugger(tabId);
+  try {
+    const value = await cdpEval(tabId, expression);
+    return { ok: true, data: { value } };
+  } finally {
+    await detachDebugger(tabId);
+  }
+}
+
+/**
+ * Diagnostic: dumps the real DOM facts needed to calibrate the project-library
+ * upload control (distinct from the chat composer's attachment input).
+ */
+async function inspectProject(params) {
+  const { projectUrl } = params;
+  const tabId = await getProjectTab(projectUrl);
+  const data = await runInTab(tabId, () => {
+    const text = (el) => (el.innerText || el.textContent || el.getAttribute("aria-label") || "").trim();
+    const brief = (el) => ({
+      tag: el.tagName.toLowerCase(),
+      id: el.id || undefined,
+      name: el.getAttribute("name") || undefined,
+      type: el.getAttribute("type") || undefined,
+      accept: el.getAttribute("accept") || undefined,
+      ariaLabel: el.getAttribute("aria-label") || undefined,
+      testid: el.getAttribute("data-testid") || undefined,
+      className: typeof el.className === "string" ? el.className.slice(0, 120) : undefined,
+      hidden: el.offsetParent === null,
+      text: text(el).slice(0, 60) || undefined,
+    });
+
+    const fileInputs = Array.from(document.querySelectorAll('input[type="file"]')).map((el) => {
+      const b = brief(el);
+      // Describe surrounding context to tell composer-attach vs library-upload apart.
+      let ctx = "";
+      let p = el.parentElement;
+      for (let i = 0; i < 6 && p; i++) {
+        const t = (p.getAttribute("data-testid") || p.getAttribute("aria-label") || "").trim();
+        if (t) {
+          ctx = t;
+          break;
+        }
+        p = p.parentElement;
+      }
+      return { ...b, context: ctx || undefined };
+    });
+
+    const re = /add|upload|content|knowledge|file|document|attach/i;
+    const candidateButtons = Array.from(document.querySelectorAll('button,[role="button"],a'))
+      .map((el) => ({ el, t: text(el) }))
+      .filter(({ el, t }) => re.test(t) || re.test(el.getAttribute("aria-label") || ""))
+      .slice(0, 25)
+      .map(({ el }) => brief(el));
+
+    const headings = Array.from(document.querySelectorAll("h1,h2,h3,h4,[role=heading]"))
+      .map((el) => text(el))
+      .filter(Boolean)
+      .slice(0, 25);
+
+    return { fileInputs, candidateButtons, headings, url: location.href };
+  });
+  return { ok: true, data };
+}
+
+async function getProjectInstructions(params) {
+  const { platform, projectUrl } = params;
+  const sel = selectorsFor(platform);
+  const tabId = await getProjectTab(projectUrl);
+  const text = await runInTab(
+    tabId,
+    (instrSels) => {
+      for (const s of instrSels) {
+        const el = document.querySelector(s);
+        if (el) return (el.value !== undefined ? el.value : el.innerText || "").trim();
+      }
+      return "";
+    },
+    [sel.instructions],
+  );
+  return { ok: true, data: { text } };
+}
+
+async function setProjectInstructions(params) {
+  const { platform, projectUrl, text } = params;
+  const tabId = await getProjectTab(projectUrl);
+  await attachDebugger(tabId);
+  try {
+    const sel = selectorsFor(platform);
+    const focused = await cdpEval(
+      tabId,
+      `(function(){ var s=${JSON.stringify(sel.instructions)};
+        for (var i=0;i<s.length;i++){var el=document.querySelector(s[i]);
+          if(el){el.focus(); if(el.select)el.select(); return true;}} return false; })()`,
+    );
+    if (!focused) return { ok: false, error: "instructions editor not found (selectors need calibration)" };
+    // Replace existing content, then type the new instructions as trusted input.
+    await cdp(tabId, "Input.insertText", { text });
+    await sleep(800);
+    return { ok: true, data: {} };
+  } finally {
+    await detachDebugger(tabId);
   }
 }
 
@@ -187,6 +486,17 @@ async function cdpEval(tabId, expression) {
     throw new Error(res.exceptionDetails.text || "evaluate failed");
   }
   return res && res.result ? res.result.value : undefined;
+}
+
+/** Evaluates an expression and returns a CDP objectId (or null) for the result. */
+async function cdpEvalObjectId(tabId, expression) {
+  const res = await cdp(tabId, "Runtime.evaluate", { expression, returnByValue: false });
+  if (res && res.exceptionDetails) {
+    throw new Error(res.exceptionDetails.text || "evaluate failed");
+  }
+  const objectId = res && res.result ? res.result.objectId : undefined;
+  // A null DOM result has subtype "null" and no objectId.
+  return objectId || null;
 }
 
 /**

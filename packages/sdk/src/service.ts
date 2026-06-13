@@ -5,7 +5,9 @@ import { z } from "zod";
 import { sendBridgeCommand } from "./bridge/client.js";
 import { BrowserSession } from "./browser/session.js";
 import { DEFAULT_CDP_PORT } from "./config.js";
+import { ExtensionDriver } from "./drivers/extension/driver.js";
 import { createDriver } from "./drivers/factory.js";
+import type { Driver } from "./drivers/driver.js";
 import { AichatctlError, NotLoggedInError } from "./errors.js";
 import { loadManifest, manifestForPlatform } from "./sync/manifest.js";
 import { syncPlatform } from "./sync/sync.js";
@@ -125,6 +127,12 @@ export interface RunSyncOptions extends ConnectionOptions {
   readonly dryRun: boolean;
   /** Override the sync-state file path. */
   readonly statePath?: string;
+  /** How to drive the browser: CDP (dedicated profile) or the real-Chrome extension. */
+  readonly transport?: "cdp" | "extension";
+  /** Bridge daemon port (extension transport). */
+  readonly bridgePort?: number;
+  /** Bridge token (extension transport). */
+  readonly token?: string;
 }
 
 /**
@@ -138,14 +146,15 @@ export async function runSync(options: RunSyncOptions): Promise<SyncReport[]> {
     (p) => manifest.platforms[p] !== undefined,
   );
 
-  const session = await BrowserSession.connect({ port: options.port ?? DEFAULT_CDP_PORT });
-  try {
+  const syncTargets = async (drivers: Map<Platform, Driver>): Promise<SyncReport[]> => {
     const reports: SyncReport[] = [];
     for (const platform of targets) {
-      const driver = createDriver(platform, session);
-      const entry = manifestForPlatform(manifest, platform);
+      const driver = drivers.get(platform);
+      if (!driver) {
+        continue;
+      }
       reports.push(
-        await syncPlatform(driver, entry, {
+        await syncPlatform(driver, manifestForPlatform(manifest, platform), {
           baseDir: manifest.baseDir,
           dryRun: options.dryRun,
           ...(options.statePath !== undefined ? { statePath: options.statePath } : {}),
@@ -153,6 +162,25 @@ export async function runSync(options: RunSyncOptions): Promise<SyncReport[]> {
       );
     }
     return reports;
+  };
+
+  if (options.transport === "extension") {
+    const drivers = new Map<Platform, Driver>(
+      targets.map((p) => [
+        p,
+        new ExtensionDriver(p, {
+          ...(options.bridgePort !== undefined ? { bridgePort: options.bridgePort } : {}),
+          ...(options.token !== undefined ? { token: options.token } : {}),
+        }),
+      ]),
+    );
+    return syncTargets(drivers);
+  }
+
+  const session = await BrowserSession.connect({ port: options.port ?? DEFAULT_CDP_PORT });
+  try {
+    const drivers = new Map<Platform, Driver>(targets.map((p) => [p, createDriver(p, session)]));
+    return await syncTargets(drivers);
   } finally {
     await session.close();
   }

@@ -24,6 +24,7 @@ export type {
   CreateSessionOptions,
 } from "./drivers/driver.js";
 export { createDriver } from "./drivers/factory.js";
+export { ExtensionDriver } from "./drivers/extension/driver.js";
 
 export * from "./sync/manifest.js";
 export * from "./sync/plan.js";
