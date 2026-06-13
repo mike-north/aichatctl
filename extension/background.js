@@ -134,11 +134,9 @@ async function runCommand(msg) {
     case "inspectProject":
       return inspectProject(p);
     case "listProjects":
+      return listProjects(p);
     case "resolveProject":
-      return {
-        ok: false,
-        error: `${msg.action} by name is not yet supported via the extension; pass a project URL or id`,
-      };
+      return resolveProject(p);
     default:
       return { ok: false, error: `unknown action: ${msg.action}` };
   }
@@ -373,6 +371,53 @@ async function inspectProject(params) {
   return { ok: true, data };
 }
 
+const PROJECTS_URL = { claude: "https://claude.ai/projects", chatgpt: "https://chatgpt.com" };
+
+function buildProjectUrl(platform, id) {
+  return platform === "claude"
+    ? `https://claude.ai/project/${id}`
+    : `https://chatgpt.com/g/${id}/project`;
+}
+
+async function listProjects(params) {
+  const { platform } = params;
+  const tabId = await getProjectTab(PROJECTS_URL[platform]);
+  // Reload so a reused tab reflects projects created since it was opened.
+  await chrome.tabs.reload(tabId);
+  await waitForComplete(tabId);
+  await sleep(1000);
+  const raw = await runInTab(
+    tabId,
+    (plat) => {
+      const sel = plat === "claude" ? 'a[href^="/project/"]' : 'a[href*="/g/g-p-"]';
+      const seen = new Set();
+      const out = [];
+      document.querySelectorAll(sel).forEach((a) => {
+        const href = a.getAttribute("href") || "";
+        const m =
+          plat === "claude" ? href.match(/\/project\/([^/?#]+)/) : href.match(/\/g\/(g-p-[^/?#]+)/);
+        const id = m && m[1];
+        if (!id || seen.has(id)) return;
+        seen.add(id);
+        out.push({ id, name: (a.innerText || "").trim().split("\n")[0] });
+      });
+      return out;
+    },
+    [platform],
+  );
+  return { ok: true, data: raw.map((p) => ({ id: p.id, name: p.name, url: buildProjectUrl(platform, p.id) })) };
+}
+
+async function resolveProject(params) {
+  const { platform, ref } = params;
+  const list = (await listProjects(params)).data;
+  const match =
+    list.find((p) => p.name === ref) ||
+    list.find((p) => (p.name || "").toLowerCase() === (ref || "").toLowerCase());
+  if (!match) return { ok: false, error: `No project matching "${ref}" on ${platform}` };
+  return { ok: true, data: match };
+}
+
 async function getProjectInstructions(params) {
   const { platform, projectUrl } = params;
   const sel = selectorsFor(platform);
@@ -396,6 +441,36 @@ async function setProjectInstructions(params) {
   const tabId = await getProjectTab(projectUrl);
   await attachDebugger(tabId);
   try {
+    if (platform === "claude") {
+      // The instructions editor is behind an "Edit instructions" button.
+      const opened = await cdpEval(
+        tabId,
+        '(function(){var b=Array.from(document.querySelectorAll("button,[role=button]")).find(function(x){return (x.getAttribute("aria-label")||"")==="Edit instructions";});if(b){b.click();return true;}return false;})()',
+      );
+      if (!opened) return { ok: false, error: "'Edit instructions' button not found (calibration)" };
+      let ready = false;
+      for (let i = 0; i < 20; i++) {
+        ready = await cdpEval(tabId, '!!document.querySelector("[data-testid=\\"custom-instructions-textarea\\"]")');
+        if (ready) break;
+        await sleep(150);
+      }
+      if (!ready) return { ok: false, error: "instructions textarea did not appear" };
+      // Focus + select existing content so insertText replaces it.
+      await cdpEval(
+        tabId,
+        '(function(){var t=document.querySelector("[data-testid=\\"custom-instructions-textarea\\"]");t.focus();t.select();return true;})()',
+      );
+      await cdp(tabId, "Input.insertText", { text });
+      await sleep(300);
+      const saved = await cdpEval(
+        tabId,
+        '(function(){var b=Array.from(document.querySelectorAll("button")).find(function(x){return /save instructions/i.test(x.innerText||"");});if(b){b.click();return true;}return false;})()',
+      );
+      if (!saved) return { ok: false, error: "'Save instructions' button not found (calibration)" };
+      await sleep(1000);
+      return { ok: true, data: {} };
+    }
+    // chatgpt: best-effort until calibrated.
     const sel = selectorsFor(platform);
     const focused = await cdpEval(
       tabId,
@@ -404,7 +479,6 @@ async function setProjectInstructions(params) {
           if(el){el.focus(); if(el.select)el.select(); return true;}} return false; })()`,
     );
     if (!focused) return { ok: false, error: "instructions editor not found (selectors need calibration)" };
-    // Replace existing content, then type the new instructions as trusted input.
     await cdp(tabId, "Input.insertText", { text });
     await sleep(800);
     return { ok: true, data: {} };
