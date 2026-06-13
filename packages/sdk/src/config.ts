@@ -20,3 +20,8 @@ export function configDir(): string {
 export function chromeProfileDir(): string {
   return join(configDir(), "chrome-profile");
 }
+
+/** Path to the shared bridge token (gates the localhost CLI↔extension channel). */
+export function bridgeTokenPath(): string {
+  return join(configDir(), "bridge-token");
+}

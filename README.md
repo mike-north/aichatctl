@@ -74,17 +74,22 @@ extension; no model in the loop, no tokens), and it sidesteps the debugging-port
 block entirely.
 
 ```bash
-# 1. Start the bridge daemon (long-running)
-aichatctl bridge serve            # add --token <secret> to lock it down
+# 1. Start the bridge daemon (long-running). It auto-creates a token and prints it.
+aichatctl bridge serve            # token stored in ~/.config/aichatctl/bridge-token
 
 # 2. Load the unpacked extension in your real Chrome:
 #    chrome://extensions -> Developer mode -> Load unpacked -> ./extension
-#    (it connects to the bridge automatically)
+#    Open its options page once and paste the token (`aichatctl bridge token` prints it).
 
-# 3. Seed a session through your real session:
+# 3. Seed a session / sync files through your real session (the CLI reads the token):
 aichatctl session create --transport extension \
   --platform claude --project "<url-or-id>" --seed-file notes.md --json
+aichatctl sync --transport extension          # mirror manifest files into the library
 ```
+
+The bridge requires the token by default, so a stray localhost process can't drive
+your browser. The CLI reads it automatically; the extension is configured with it
+once via its options page. `aichatctl bridge serve --no-auth` disables it (insecure).
 
 The extension opens the project in a tab, types your prompt via the page's own
 editor, and (unless `--no-send`) starts the conversation — ready to continue from

@@ -84,5 +84,19 @@ export function sendBridgeCommand(
         );
       });
     });
+
+    ws.on("close", (code: number) => {
+      // The daemon closes with 4001 when the token is missing/wrong; fail fast
+      // instead of waiting out the timeout.
+      finish(() => {
+        reject(
+          new BridgeError(
+            code === 4001
+              ? "Bridge rejected the token (unauthorized). Run `aichatctl bridge token` and configure the extension."
+              : `Bridge connection closed before a result (code ${String(code)}).`,
+          ),
+        );
+      });
+    });
   });
 }

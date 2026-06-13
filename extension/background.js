@@ -12,11 +12,11 @@
 
 const BRIDGE_PORT = 8917;
 const BRIDGE_URL = `ws://127.0.0.1:${BRIDGE_PORT}`;
-// Optional shared secret — leave empty to match a daemon started without --token.
-const BRIDGE_TOKEN = "";
+// The shared secret is configured via the options page (chrome.storage.local).
 
 let ws = null;
 let reconnectTimer = null;
+let suppressTokenReconnect = false;
 
 function log(...args) {
   console.log("[aichatctl]", ...args);
@@ -24,19 +24,27 @@ function log(...args) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-function connect() {
+async function connect() {
+  let token = "";
   try {
-    ws = new WebSocket(BRIDGE_URL);
+    token = (await chrome.storage.local.get("bridgeToken")).bridgeToken || "";
+  } catch {
+    /* no token configured yet */
+  }
+  let socket;
+  try {
+    socket = new WebSocket(BRIDGE_URL);
   } catch (err) {
     scheduleReconnect();
     return;
   }
+  ws = socket;
 
-  ws.onopen = () => {
+  socket.onopen = () => {
     log("connected to bridge");
     const hello = { type: "hello", role: "extension" };
-    if (BRIDGE_TOKEN) hello.token = BRIDGE_TOKEN;
-    ws.send(JSON.stringify(hello));
+    if (token) hello.token = token;
+    socket.send(JSON.stringify(hello));
   };
 
   ws.onmessage = async (event) => {
@@ -109,6 +117,13 @@ async function runCommand(msg) {
       return getProjectInstructions(p);
     case "setProjectInstructions":
       return setProjectInstructions(p);
+    case "setBridgeToken":
+      // Bootstrap convenience: store the shared secret without the options page.
+      // Suppress the onChanged-triggered reconnect so this command's own reply
+      // isn't lost when the socket closes (the new token applies on next connect).
+      suppressTokenReconnect = true;
+      await chrome.storage.local.set({ bridgeToken: p.token || "" });
+      return { ok: true, data: { set: true } };
     case "reloadSelf":
       // Re-read the unpacked extension from disk so code changes deploy without
       // a manual chrome://extensions reload. Result is sent before reloading.
@@ -664,5 +679,21 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 });
 chrome.runtime.onStartup.addListener(ensureConnected);
 chrome.runtime.onInstalled.addListener(ensureConnected);
+
+// Reconnect with the new secret when it's set/changed in the options page.
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && changes.bridgeToken) {
+    if (suppressTokenReconnect) {
+      suppressTokenReconnect = false;
+      return;
+    }
+    try {
+      if (ws) ws.close();
+    } catch {
+      /* ignore */
+    }
+    connect();
+  }
+});
 
 ensureConnected();

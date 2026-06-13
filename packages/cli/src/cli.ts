@@ -9,6 +9,8 @@ import {
   createSeededSession,
   createSeededSessionViaExtension,
   doctor,
+  getOrCreateBridgeToken,
+  readBridgeToken,
   sendBridgeCommand,
   launchChrome,
   listProjects,
@@ -96,20 +98,25 @@ export function buildProgram(io: IO = defaultIO): Command {
     .command("serve")
     .description("Start the long-running bridge daemon the extension connects to")
     .option("--bridge-port <port>", "bridge port", parsePort, DEFAULT_BRIDGE_PORT)
-    .option("--token <token>", "shared secret the extension must present")
-    .action(async (opts: { bridgePort: number; token?: string }) => {
+    .option("--token <token>", "shared secret (defaults to the stored token)")
+    .option("--no-auth", "run without a token (insecure; localhost only)")
+    .action(async (opts: { bridgePort: number; token?: string; auth: boolean }) => {
+      const token = !opts.auth ? undefined : (opts.token ?? getOrCreateBridgeToken());
       const server = new BridgeServer({
         port: opts.bridgePort,
         log: (line) => {
           io.err(line);
         },
-        ...(opts.token !== undefined ? { token: opts.token } : {}),
+        ...(token !== undefined ? { token } : {}),
       });
       await server.start();
       io.out(`Bridge daemon listening on 127.0.0.1:${String(opts.bridgePort)}.`);
       io.out("Load the aichatctl extension in Chrome; it will connect automatically.");
-      if (opts.token === undefined) {
-        io.err("warning: no --token set; any local process can drive the extension.");
+      if (token !== undefined) {
+        io.out(`Token: ${token}`);
+        io.out("Set this once in the aichatctl extension's options page.");
+      } else {
+        io.err("warning: --no-auth set; any local process can drive the extension.");
       }
       // Block until interrupted so the daemon stays up.
       await new Promise<void>((resolve) => {
@@ -120,6 +127,13 @@ export function buildProgram(io: IO = defaultIO): Command {
           void server.stop().then(resolve);
         });
       });
+    });
+
+  bridge
+    .command("token")
+    .description("Print the bridge token (creating it on first use)")
+    .action(() => {
+      io.out(getOrCreateBridgeToken());
     });
 
   bridge
@@ -135,9 +149,10 @@ export function buildProgram(io: IO = defaultIO): Command {
       } catch {
         throw new AichatctlError("--params must be valid JSON");
       }
+      const token = opts.token ?? readBridgeToken();
       const data = await sendBridgeCommand(action, params, {
         port: opts.bridgePort,
-        ...(opts.token !== undefined ? { token: opts.token } : {}),
+        ...(token !== undefined ? { token } : {}),
       });
       io.out(JSON.stringify(data, null, 2));
     });
@@ -199,13 +214,14 @@ export function buildProgram(io: IO = defaultIO): Command {
         port: number;
         json: boolean;
       }) => {
+        const syncToken = opts.token ?? readBridgeToken();
         const reports = await runSync({
           configPath: opts.config,
           dryRun: opts.dryRun,
           port: opts.port,
           transport: opts.transport,
           bridgePort: opts.bridgePort,
-          ...(opts.token !== undefined ? { token: opts.token } : {}),
+          ...(syncToken !== undefined ? { token: syncToken } : {}),
           ...(opts.platform ? { platforms: [opts.platform] } : {}),
         });
         const lines: string[] = [];
@@ -257,6 +273,7 @@ export function buildProgram(io: IO = defaultIO): Command {
         if (prompt === undefined || prompt.trim().length === 0) {
           throw new AichatctlError("Provide a non-empty --seed or --seed-file.");
         }
+        const seedToken = opts.token ?? readBridgeToken();
         const result =
           opts.transport === "extension"
             ? await createSeededSessionViaExtension({
@@ -266,7 +283,7 @@ export function buildProgram(io: IO = defaultIO): Command {
                 send: opts.send,
                 background: opts.background,
                 bridgePort: opts.bridgePort,
-                ...(opts.token !== undefined ? { token: opts.token } : {}),
+                ...(seedToken !== undefined ? { token: seedToken } : {}),
               })
             : await createSeededSession({
                 platform: opts.platform,

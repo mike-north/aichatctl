@@ -43,5 +43,6 @@ export { BridgeServer } from "./bridge/server.js";
 export type { BridgeServerOptions } from "./bridge/server.js";
 export { sendBridgeCommand, BridgeError } from "./bridge/client.js";
 export type { BridgeCommandOptions } from "./bridge/client.js";
+export { readBridgeToken, getOrCreateBridgeToken } from "./bridge/token.js";
 export { DEFAULT_BRIDGE_PORT } from "./bridge/protocol.js";
 export type { CommandMessage, ResultMessage, BridgeMessage } from "./bridge/protocol.js";
