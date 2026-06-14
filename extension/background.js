@@ -129,6 +129,8 @@ async function runCommand(msg) {
       // a manual chrome://extensions reload. Result is sent before reloading.
       setTimeout(() => chrome.runtime.reload(), 500);
       return { ok: true, data: { reloading: true } };
+    case "captureNetwork":
+      return captureNetwork(p);
     case "evalInProject":
       return evalInProject(p);
     case "screenshot":
@@ -458,6 +460,34 @@ async function clickSelector(params) {
   }
 }
 
+/**
+ * Passive discovery: records non-GET backend-api requests for `ms` while the
+ * user manually performs an action (e.g. saving instructions) in the project tab.
+ */
+async function captureNetwork(params) {
+  const { projectUrl, ms } = params;
+  const tabId = await getProjectTab(projectUrl);
+  await chrome.tabs.update(tabId, { active: true });
+  const captured = [];
+  const listener = (source, method, p) => {
+    if (source.tabId !== tabId || method !== "Network.requestWillBeSent") return;
+    // Capture every non-GET request (skip noisy telemetry) so no save endpoint is missed.
+    if (p.request.method !== "GET" && !/sentinel|statsig|browser-intake|datadog|ace\.js/.test(p.request.url)) {
+      captured.push({ method: p.request.method, url: p.request.url, postData: (p.request.postData || "").slice(0, 400) });
+    }
+  };
+  chrome.debugger.onEvent.addListener(listener);
+  await attachDebugger(tabId);
+  try {
+    await cdp(tabId, "Network.enable", {});
+    await sleep(ms || 30000);
+    return { ok: true, data: { requests: captured } };
+  } finally {
+    chrome.debugger.onEvent.removeListener(listener);
+    await detachDebugger(tabId);
+  }
+}
+
 /** Captures a PNG screenshot of the project tab (returns a data URL). */
 async function screenshotProject(params) {
   const tabId = await getProjectTab(params.projectUrl);
@@ -697,18 +727,42 @@ async function setProjectInstructions(params) {
       await sleep(1000);
       return { ok: true, data: {} };
     }
-    // chatgpt: DEFERRED. The instructions field IS reachable — sidebar
-    // "Open project options for <name>" -> "Project settings" -> textarea#instructions
-    // (aria "Instructions") — and text can be placed in it (incl. via the React
-    // native-setter + input/change events). But ChatGPT's save does NOT fire via
-    // automation: blur, debounce waits, the dialog Close button, and Escape all
-    // leave the field empty on reload. Until the save trigger is identified, fail
-    // honestly rather than corrupt sync state with a false success.
-    void text;
-    return {
-      ok: false,
-      error: "ChatGPT project instructions sync is not yet supported (save trigger uncalibrated).",
-    };
+    // chatgpt: instructions fire no drivable UI save — no trigger and no network
+    // call we can synthesize (verified exhaustively). This is the one case where
+    // the UI has truly failed, so we use the project's own internal endpoint:
+    // PATCH /backend-api/projects/{id} with {name, instructions, emoji, theme}.
+    // Run from the page context so it carries the live session (cookies + bearer
+    // from /api/auth/session) — no stored credentials. name comes from the gizmo;
+    // emoji/theme are required by the API and are null for projects (the folder
+    // icon/color is a separate concept), so we pass null.
+    const pidMatch = projectUrl.match(/g-p-[0-9a-f]{32}/);
+    if (!pidMatch) return { ok: false, error: "could not extract ChatGPT project id from URL" };
+    const apiResult = await cdpEval(
+      tabId,
+      `(async function(){
+        try{
+          var pid=${JSON.stringify(pidMatch[0])};
+          var s=await fetch('/api/auth/session').then(function(r){return r.json();});
+          var token=s.accessToken;
+          if(!token) return JSON.stringify({ok:false,error:'not logged in (no access token)'});
+          var g=await fetch('/backend-api/gizmos/'+pid,{headers:{Authorization:'Bearer '+token}});
+          if(!g.ok) return JSON.stringify({ok:false,error:'gizmo read '+g.status});
+          var giz=(await g.json()).gizmo||{};
+          var name=(giz.display&&giz.display.name)||giz.id||pid;
+          var resp=await fetch('/backend-api/projects/'+pid,{method:'PATCH',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({name:name,instructions:${JSON.stringify(text)},emoji:null,theme:null})});
+          if(!resp.ok) return JSON.stringify({ok:false,error:'projects PATCH '+resp.status+' '+(await resp.text()).slice(0,120)});
+          return JSON.stringify({ok:true});
+        }catch(e){return JSON.stringify({ok:false,error:String(e.message||e)});}
+      })()`,
+    );
+    let parsed;
+    try {
+      parsed = JSON.parse(apiResult);
+    } catch {
+      parsed = { ok: false, error: "unparseable API result" };
+    }
+    if (!parsed.ok) return { ok: false, error: "ChatGPT instructions update failed: " + parsed.error };
+    return { ok: true, data: {} };
   } finally {
     await detachDebugger(tabId);
   }
