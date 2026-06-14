@@ -139,9 +139,8 @@ Notes:
 - ChatGPT file upload uses ChatGPT's own endpoints (register → blob PUT →
   process → associate) rather than the native file picker, which would need
   Accessibility permission (often MDM-blocked in exactly these environments).
-- **Hammerspoon** is an optional *host*, not a dependency — the transport is pure
-  `osascript`. `hammerspoon/aichatctl.lua` binds hotkeys to the CLI for those who
-  run Hammerspoon.
+- Preflight with `aichatctl doctor --transport applescript` (checks the toggle +
+  login per platform). This transport is **macOS-only** (it uses `osascript`).
 
 ## Diagnostics & calibration
 

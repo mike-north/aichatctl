@@ -95,6 +95,51 @@ export async function createSeededSessionViaExtension(
   return parsed.data;
 }
 
+/** Per-platform readiness for the AppleScript transport. */
+export interface ApplescriptPlatformStatus {
+  readonly platform: Platform;
+  readonly loggedIn: boolean;
+  readonly error?: string;
+}
+
+/** Readiness report for `doctor --transport applescript`. */
+export interface ApplescriptDoctorReport {
+  /** False when Chrome's "Allow JavaScript from Apple Events" is off. */
+  readonly jsFromAppleEventsEnabled: boolean;
+  readonly platforms: readonly ApplescriptPlatformStatus[];
+  /** True when JS is enabled and every probed platform is logged in. */
+  readonly ok: boolean;
+}
+
+/**
+ * Preflight for the AppleScript transport: verifies Chrome's JS-from-Apple-Events
+ * toggle and the logged-in state per platform. Never throws — failures are
+ * reported in the result so an agent can guide the user.
+ */
+export async function doctorApplescript(
+  platforms: readonly Platform[] = PLATFORMS,
+): Promise<ApplescriptDoctorReport> {
+  let jsEnabled = true;
+  const statuses: ApplescriptPlatformStatus[] = [];
+  for (const platform of platforms) {
+    try {
+      const loggedIn = await new AppleScriptDriver(platform).isLoggedIn();
+      statuses.push({ platform, loggedIn });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (/Allow JavaScript from Apple Events/i.test(message)) {
+        jsEnabled = false;
+      }
+      statuses.push({ platform, loggedIn: false, error: message });
+    }
+  }
+  return {
+    jsFromAppleEventsEnabled: jsEnabled,
+    platforms: statuses,
+    ok: jsEnabled && statuses.every((s) => s.loggedIn),
+  };
+}
+
 /** Options for {@link createSeededSessionViaApplescript}. */
 export interface SeedViaApplescriptOptions {
   readonly platform: Platform;

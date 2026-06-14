@@ -10,6 +10,7 @@ import {
   createSeededSessionViaApplescript,
   createSeededSessionViaExtension,
   doctor,
+  doctorApplescript,
   getOrCreateBridgeToken,
   readBridgeToken,
   sendBridgeCommand,
@@ -160,9 +161,28 @@ export function buildProgram(io: IO = defaultIO): Command {
 
   // doctor ---------------------------------------------------------------------
   portOption(program.command("doctor"))
-    .description("Check CDP reachability, login state, and selector health")
+    .description("Check transport readiness (CDP reachability / AppleScript prerequisites + login)")
+    .option("--transport <t>", "cdp | applescript", parseTransport, "cdp")
     .option("--json", "machine-readable output", false)
-    .action(async (opts: { port: number; json: boolean }) => {
+    .action(async (opts: { port: number; transport: Transport; json: boolean }) => {
+      if (opts.transport === "applescript") {
+        const report = await doctorApplescript();
+        const lines: string[] = [];
+        lines.push(
+          report.jsFromAppleEventsEnabled
+            ? "Chrome: 'Allow JavaScript from Apple Events' enabled"
+            : "Chrome: 'Allow JavaScript from Apple Events' is OFF — enable it (View → Developer).",
+        );
+        for (const p of report.platforms) {
+          lines.push(`${p.platform}: login=${String(p.loggedIn)}${p.error ? ` (${p.error})` : ""}`);
+        }
+        lines.push(report.ok ? "OK" : "Problems found.");
+        emit(io, opts.json, lines.join("\n"), report);
+        if (!report.ok) {
+          process.exitCode = 1;
+        }
+        return;
+      }
       const report = await doctor({ port: opts.port });
       const lines: string[] = [];
       lines.push(`CDP ${report.cdpReachable ? "reachable" : "UNREACHABLE"} on port ${String(report.cdpPort)}`);
