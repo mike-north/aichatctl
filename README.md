@@ -128,10 +128,8 @@ What works extension-free today:
 | Operation | Claude | ChatGPT |
 | --- | :-: | :-: |
 | Seed session, resolve project, login check | ✅ | ✅ |
-| Read project files | ✅ | ✅ (sidebar API) |
+| File library: upload / read / delete | ✅ (docs API) | ✅ (files API) |
 | Instructions sync | UI flow | ✅ (internal API) |
-| File upload | follow-on | ✅ (internal API) |
-| File delete | follow-on | follow-on |
 
 Notes:
 - AppleScript's `execute javascript` doesn't await promises, so page JS uses

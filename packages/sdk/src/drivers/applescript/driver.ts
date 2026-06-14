@@ -83,6 +83,21 @@ export class AppleScriptDriver implements Driver {
     return this.#eval(project.id, project.url, jsBody);
   }
 
+  /**
+   * Runs `opBody` against Claude's project-docs API, with `sx` (sync XHR) and
+   * `base` (the docs collection URL) in scope. Claude stores project docs as
+   * text, so upload/read/delete are simple cookie-authenticated JSON calls.
+   */
+  #claudeDocs(project: Project, opBody: string): Promise<unknown> {
+    return this.#evalProject(
+      project,
+      `function sx(m,u,b,ct){var x=new XMLHttpRequest();x.open(m,u,false);if(ct)x.setRequestHeader('Content-Type',ct);x.send(b||null);return {status:x.status,text:x.responseText};}
+       var org=JSON.parse(sx('GET','/api/organizations').text)[0].uuid;
+       var base='/api/organizations/'+org+'/projects/'+${JSON.stringify(project.id)}+'/docs';
+       ${opBody}`,
+    );
+  }
+
   public async isLoggedIn(): Promise<boolean> {
     const r = (await this.#evalBase(
       this.platform === "claude"
@@ -140,12 +155,10 @@ export class AppleScriptDriver implements Driver {
 
   public async getProjectFiles(project: Project): Promise<RemoteFile[]> {
     if (this.platform === "claude") {
-      const names = (await this.#evalProject(project, `
-        var out=[];
-        document.querySelectorAll('[data-testid="file-thumbnail"]').forEach(function(r){
-          var n=(r.innerText||"").trim().split("\\n")[0];if(n)out.push(n);});
-        return JSON.stringify(out);`)) as string[];
-      return names.map((name) => ({ name }));
+      return (await this.#claudeDocs(
+        project,
+        `var docs=JSON.parse(sx('GET',base).text);return JSON.stringify(docs.map(function(d){return {name:d.file_name};}));`,
+      )) as RemoteFile[];
     }
     // ChatGPT sources via the sidebar API (the Sources tab needs a trusted click).
     const files = (await this.#evalProject(project, `
@@ -160,16 +173,21 @@ export class AppleScriptDriver implements Driver {
   }
 
   public async uploadProjectFile(project: Project, localPath: string): Promise<void> {
-    if (this.platform !== "chatgpt") {
-      throw new AichatctlError(
-        "uploadProjectFile for Claude via the AppleScript transport is not yet supported.",
-      );
+    const content = readFileSync(localPath, "utf8");
+    const name = basename(localPath);
+    if (this.platform === "claude") {
+      // Claude project docs are plain text: POST {file_name, content}.
+      const r = (await this.#claudeDocs(
+        project,
+        `var up=sx('POST',base,JSON.stringify({file_name:${JSON.stringify(name)},content:${JSON.stringify(content)}}),'application/json');
+         return JSON.stringify({ok:up.status>=200&&up.status<300,status:up.status});`,
+      )) as { ok: boolean; status: number };
+      if (!r.ok) throw new AichatctlError(`Claude upload failed (HTTP ${String(r.status)}).`);
+      return;
     }
     // No native file picker (would need Accessibility). Replicate ChatGPT's own
     // upload sequence via synchronous XHR: register -> blob PUT -> process -> associate.
-    const content = readFileSync(localPath, "utf8");
     const size = Buffer.byteLength(content, "utf8");
-    const name = basename(localPath);
     const mime = mimeForExt(extname(localPath));
     const lastModified = Math.round(statSync(localPath).mtimeMs);
     const r = (await this.#evalProject(
@@ -194,10 +212,34 @@ export class AppleScriptDriver implements Driver {
     }
   }
 
-  public deleteProjectFile(): Promise<void> {
-    throw new AichatctlError(
-      "deleteProjectFile via the AppleScript transport is not yet supported (phase 2).",
-    );
+  public async deleteProjectFile(project: Project, remoteName: string): Promise<void> {
+    if (this.platform === "claude") {
+      const r = (await this.#claudeDocs(
+        project,
+        `var docs=JSON.parse(sx('GET',base).text);
+         var d=docs.find(function(x){return x.file_name===${JSON.stringify(remoteName)};});
+         if(!d)return JSON.stringify({ok:true,absent:true});
+         var del=sx('DELETE',base+'/'+d.uuid);
+         return JSON.stringify({ok:del.status>=200&&del.status<300,status:del.status});`,
+      )) as { ok: boolean; status?: number };
+      if (!r.ok) throw new AichatctlError(`Claude delete failed (HTTP ${String(r.status ?? "?")}).`);
+      return;
+    }
+    const r = (await this.#evalProject(project, `
+      function sx(m,u,t){var x=new XMLHttpRequest();x.open(m,u,false);if(t)x.setRequestHeader('Authorization','Bearer '+t);x.send();return {status:x.status,text:x.responseText};}
+      var s=JSON.parse(sx('GET','/api/auth/session').text);var token=s.accessToken;
+      var pid=${JSON.stringify(project.id)};
+      var sb=JSON.parse(sx('GET','/backend-api/gizmos/snorlax/sidebar',token).text);
+      var item=(sb.items||[]).find(function(it){return it.gizmo&&it.gizmo.id===pid;});
+      var files=(item&&(item.files||(item.gizmo&&item.gizmo.files)))||[];
+      var f=files.find(function(x){return x.name===${JSON.stringify(remoteName)};});
+      if(!f)return JSON.stringify({ok:true,absent:true});
+      var del=sx('DELETE','/backend-api/projects/'+pid+'/files/'+f.file_id,token);
+      return JSON.stringify({ok:del.status>=200&&del.status<300,status:del.status});`)) as {
+      ok: boolean;
+      status?: number;
+    };
+    if (!r.ok) throw new AichatctlError(`ChatGPT delete failed (HTTP ${String(r.status ?? "?")}).`);
   }
 
   public async getProjectInstructions(project: Project): Promise<string> {
