@@ -3,11 +3,17 @@
  *
  * Connects to the local bridge daemon (started by `aichatctl bridge serve`),
  * receives deterministic commands, and executes them against the user's real,
- * logged-in Claude.ai / ChatGPT tabs. No model in the loop, no screenshots.
+ * logged-in Claude.ai / ChatGPT tabs. No model in the loop, no tokens.
  *
- * This is the spike transport: it implements `seedSession` via injected
- * page scripting. File-library sync (which needs trusted file-input handling)
- * will be added later via the chrome.debugger CDP path.
+ * Implements both use cases on both platforms: seedSession (page scripting /
+ * chrome.debugger for background), and project sync — getProjectFiles,
+ * uploadProjectFile (DOM.setFileInputFiles), deleteProjectFile,
+ * setProjectInstructions, plus listProjects/resolveProject by name. React
+ * controls are driven with dispatched CDP mouse events, not synthetic clicks.
+ * ChatGPT instructions are the one operation with no drivable UI save, so they
+ * go through ChatGPT's own endpoint from the page context (see
+ * setProjectInstructions). Diagnostic commands (screenshot, inspectProject,
+ * evalInProject, clickSelector, captureNetwork, reloadSelf) support recalibration.
  */
 
 const BRIDGE_PORT = 8917;

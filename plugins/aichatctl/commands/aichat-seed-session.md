@@ -9,19 +9,20 @@ project name or URL — ask if either is missing).
 
 Steps:
 
-1. Run `aichatctl doctor --json`. If CDP is unreachable or the target platform is
-   not logged in, tell the user to run `aichatctl browser launch` and sign in,
-   then stop.
-2. **Compose the seed prompt** from the current context — what the user is working
+1. **Compose the seed prompt** from the current context — what the user is working
    on, relevant notes, the question or task they'd want to talk through. This is
    the part that needs your reasoning. Write it to `scratch/seed.md`.
-3. Show the user the prompt you composed and confirm the target project.
-4. Create the session:
+2. Show the user the prompt you composed and confirm the target project.
+3. Create the session:
    ```bash
-   aichatctl session create --platform <p> --project "<ref>" --seed-file scratch/seed.md --json
+   aichatctl session create --transport extension --platform <p> --project "<ref>" --seed-file scratch/seed.md --json
    ```
-5. Return the conversation `url` from the JSON and tell the user they can open it
-   in the mobile app and tap voice to continue.
+   If this errors with "No extension connected to the bridge", tell the user to run
+   `aichatctl bridge serve` and load the unpacked `extension/` in Chrome (token from
+   `aichatctl bridge token` into its options page once), then retry.
+4. Return the conversation `url` from the JSON and tell the user they can open it in
+   the mobile app and tap voice to continue.
 
-Use `--no-send` only if the user wants to review before the first message is sent.
-Do not drive the browser yourself — the CLI handles all of that.
+Flags: `--no-send` stages the prompt without sending (for review); `--background`
+seeds in an inactive tab without stealing focus (good for unattended runs).
+Do not drive the browser yourself — the CLI/extension handles all of that.

@@ -4,28 +4,45 @@ Drive the **Claude.ai** and **ChatGPT** web interfaces from agents — to keep a
 project's file library in sync with a git source of truth, and to create seeded
 chat sessions you can continue by voice on mobile.
 
-These platforms expose no public API for project files or project-scoped chat
-creation, so `aichatctl` does it the only reliable way: deterministic DOM
-automation (Playwright) against your **real, logged-in Chrome**, attached over
-the Chrome DevTools Protocol. Agents handle the reasoning (what to sync, what
-prompt to seed); the tool handles every click.
+These platforms expose no public API for project files, instructions, or
+project-scoped chat creation. `aichatctl` does it deterministically against your
+**real, logged-in Chrome** via a small in-browser extension driven over a
+localhost bridge — fixed code, no model in the loop, no tokens spent on the
+browser. Agents handle the reasoning (what to sync, what prompt to seed); the
+tool handles every click.
+
+Both use cases work on **both platforms**, end to end:
+
+| Capability | Claude.ai | ChatGPT |
+| --- | :-: | :-: |
+| Discover projects (by name / URL) | ✅ | ✅ |
+| Seed a session (foreground + background) | ✅ | ✅ |
+| File library: upload / list / delete | ✅ | ✅ |
+| Sync (idempotent upload → no-op) | ✅ | ✅ |
+| Project instructions sync | ✅ | ✅¹ |
+
+¹ ChatGPT instructions are the one operation with no drivable UI save, so they
+use ChatGPT's own internal endpoint, authenticated through your live session (see
+[How it works](#how-it-works)). Everything else is UI-driven.
 
 ## Why
 
 - **Project files rot.** You upload a spec to a Claude/ChatGPT project, the spec
   changes in the repo, and the uploaded copy silently goes stale. `aichatctl sync`
-  mirrors a declared subset of repo files into the project library on demand.
+  mirrors a declared subset of repo files (and the instructions) into the project
+  on demand.
 - **Voice-ready handoff.** A local agent composes a prompt, `aichatctl` creates a
   new chat in the right project and starts it; you open the mobile app and talk.
 
 ## Layout
 
-| Package | What it is |
+| Piece | What it is |
 | --- | --- |
-| `@aichatctl/sdk` | The engine: CDP attach, per-platform drivers, sync engine |
+| `@aichatctl/sdk` | The engine: platform drivers, sync engine, the localhost bridge |
 | `aichatctl` (CLI) | Thin command-line over the SDK; `--json` everywhere |
 | `@aichatctl/mcp` | MCP server exposing the operations as agent tools |
-| `plugins/aichatctl` | Claude Code plugin (skill + `/aichat-sync`, `/aichat-seed-session`) |
+| `extension/` | Unpacked MV3 extension that runs the deterministic actions in your real Chrome |
+| `plugins/aichatctl` | Agent plugin (skill + `/aichat-sync`, `/aichat-seed-session`) |
 
 ## Setup
 
@@ -34,70 +51,82 @@ pnpm install
 pnpm build
 ```
 
-### Browser & login (one-time)
-
-`aichatctl` attaches to Chrome over CDP. Recent Chrome refuses remote debugging on
-your *default* profile, so the tool uses a **dedicated automation profile** you
-sign into once:
-
-```bash
-node packages/cli/dist/bin.js browser launch
-# Sign in to claude.ai and chatgpt.com in the window that opens.
-aichatctl doctor   # verify: CDP reachable + logged in + selectors resolve
-```
-
-The profile lives under `~/.config/aichatctl/chrome-profile` and persists across
-runs. It is real Google Chrome with real cookies — just isolated from everyday
-browsing so it is allowed to expose the debugging port.
-
-## Usage
-
-```bash
-# Sync repo files + instructions into project libraries (preview, then apply)
-aichatctl sync --dry-run
-aichatctl sync
-
-# Create a seeded session and get its URL
-aichatctl session create --platform claude --project "My Project" --seed-file notes.md --json
-```
-
-Copy `aichatctl.config.example.yaml` to `aichatctl.config.yaml` and edit it to
-declare your projects and file globs.
-
-## Extension transport (drive your real Chrome)
-
-Chrome 136+ refuses `--remote-debugging-port` on your default profile, so the CDP
-path above uses a dedicated automation profile. To drive your **real, everyday
-Chrome** — with your existing logins and extensions — use the **extension
-transport** instead. It's still fully deterministic (fixed code in an MV3
-extension; no model in the loop, no tokens), and it sidesteps the debugging-port
-block entirely.
+### Bridge + extension (one-time)
 
 ```bash
 # 1. Start the bridge daemon (long-running). It auto-creates a token and prints it.
 aichatctl bridge serve            # token stored in ~/.config/aichatctl/bridge-token
 
-# 2. Load the unpacked extension in your real Chrome:
+# 2. Load the unpacked extension in your everyday Chrome:
 #    chrome://extensions -> Developer mode -> Load unpacked -> ./extension
 #    Open its options page once and paste the token (`aichatctl bridge token` prints it).
-
-# 3. Seed a session / sync files through your real session (the CLI reads the token):
-aichatctl session create --transport extension \
-  --platform claude --project "<url-or-id>" --seed-file notes.md --json
-aichatctl sync --transport extension          # mirror manifest files into the library
 ```
 
 The bridge requires the token by default, so a stray localhost process can't drive
-your browser. The CLI reads it automatically; the extension is configured with it
-once via its options page. `aichatctl bridge serve --no-auth` disables it (insecure).
+your browser; the CLI reads it automatically. The extension self-heals its
+connection (it reconnects across daemon restarts via `chrome.alarms`).
+`aichatctl bridge serve --no-auth` disables auth (insecure; localhost only).
 
-The extension opens the project in a tab, types your prompt via the page's own
-editor, and (unless `--no-send`) starts the conversation — ready to continue from
-the mobile app. Today the seed flow uses page scripting (opens an active tab);
-file-library sync and background/unattended seeding will use the `chrome.debugger`
-CDP path, which injects trusted input without needing tab focus.
+Copy `aichatctl.config.example.yaml` to `aichatctl.config.yaml` and declare your
+projects, file globs, and (optionally) an instructions markdown file.
 
-## Claude Code plugin
+## Usage
+
+```bash
+# Sync repo files + instructions into project libraries (preview, then apply)
+aichatctl sync --transport extension --dry-run
+aichatctl sync --transport extension
+aichatctl sync --transport extension --platform chatgpt   # limit to one platform
+
+# Seed a session and get its URL (--project takes a name, URL, or id)
+aichatctl session create --transport extension \
+  --platform claude --project "My Project" --seed-file notes.md --json
+
+# Background/unattended seed (opens an inactive tab via chrome.debugger):
+aichatctl session create --transport extension --background \
+  --platform chatgpt --project "My Project" --seed-file notes.md --json
+```
+
+The JSON result of `session create` includes the conversation `url` — open it in
+the mobile app and continue (e.g. tap voice). `--no-send` stages the prompt
+without submitting. Sync only ever deletes files **it** previously synced; files
+you added manually in the web UI are left untouched.
+
+## How it works
+
+- **Extension transport (primary).** The MV3 extension in `extension/` runs the
+  driver actions in your real, logged-in tabs. It sidesteps Chrome 136+'s block on
+  `--remote-debugging-port` for the default profile, and uses `chrome.debugger`
+  (CDP) for the parts the DOM can't do from a content script — `DOM.setFileInputFiles`
+  for uploads, trusted input for background seeding. React controls (ChatGPT tabs,
+  menus) are driven with dispatched mouse events, not synthetic `.click()`.
+- **CDP transport (fallback).** `--transport cdp` (the default) drives a
+  Playwright connection to a dedicated automation Chrome profile
+  (`aichatctl browser launch`), for headless/unattended use without the extension.
+  Its per-platform selectors live in `packages/sdk/src/drivers/<platform>/selectors.ts`
+  and are best-effort — calibrate with `aichatctl doctor` before relying on it.
+- **Internal API, only where the UI fails.** Driving the UI is preferred (no
+  brittle API coupling). ChatGPT project *instructions* are the lone exception:
+  the field fires no save under automation, so the extension calls ChatGPT's own
+  `PATCH /backend-api/projects/{id}` from the page context — it carries your live
+  session (cookies + bearer from `/api/auth/session`); no credentials are stored.
+
+## Diagnostics & calibration
+
+Web UIs drift. When something stops resolving, the extension exposes diagnostic
+commands over the bridge so you (or an agent) can recalibrate without guessing:
+
+```bash
+aichatctl bridge call screenshot     --params '{"projectUrl":"<url>"}'   # see the page
+aichatctl bridge call inspectProject --params '{"platform":"claude","projectUrl":"<url>"}'
+aichatctl bridge call evalInProject  --params '{"projectUrl":"<url>","expression":"..."}'
+aichatctl bridge call reloadSelf                                          # redeploy extension edits
+```
+
+Edit selectors in `extension/background.js`, then `aichatctl bridge call reloadSelf`
+to redeploy without touching `chrome://extensions`.
+
+## Agent plugin
 
 ```
 /plugin marketplace add /path/to/aichatctl
@@ -108,34 +137,8 @@ Then use `/aichat-sync` and `/aichat-seed-session`, or just ask — the `aichatc
 skill activates automatically. Cross-platform plugin builds (Codex, etc.) are
 produced with [`aipm`](https://github.com/ai-plugin-marketplace/tools).
 
-## ⚠️ Live selector calibration
-
-The per-platform locators in `packages/sdk/src/drivers/<platform>/selectors.ts`
-are best-effort and **must be calibrated against the live, logged-in UI** before
-the file-management and session flows are fully reliable. `aichatctl doctor`
-reports which selectors resolve; fix failing ones with Playwright codegen:
-
-```bash
-pnpm exec playwright codegen https://claude.ai
-pnpm exec playwright codegen https://chatgpt.com
-```
-
-Because every locator lives in that one file per platform, UI drift is always a
-single-file fix.
-
-## Verifying end-to-end (UAT)
-
-With Chrome launched and logged in:
-
-1. **Seeded session** — `aichatctl session create --platform claude --project "<name>" --seed-file scratch/notes.md --json`,
-   then open the printed URL on desktop and on the mobile app; confirm it is in
-   the right project and started.
-2. **Sync** — edit a tracked file, `aichatctl sync --dry-run` should show exactly
-   that file as `replace`; `aichatctl sync` applies it; confirm the project's file
-   list updated. Remove a tracked file and confirm a `delete` step.
-
 ## Notes
 
 `aichatctl` operates *your own* authenticated personal accounts for personal
-productivity, at human pace. It performs no credential harvesting and stores no
-passwords (the browser profile holds your normal session cookies).
+productivity, at human pace. It stores no passwords (your Chrome session holds the
+cookies) and never persists auth tokens.
