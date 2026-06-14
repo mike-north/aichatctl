@@ -12,7 +12,8 @@
     "https://claude.ai/*",
     "https://chatgpt.com/*",
     "https://chat.openai.com/*",
-    "ws://127.0.0.1/*"
+    "ws://127.0.0.1/*",
+    "<all_urls>"
   ],
   "background": {
     "service_worker": "background.js"

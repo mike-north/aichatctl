@@ -131,6 +131,10 @@ async function runCommand(msg) {
       return { ok: true, data: { reloading: true } };
     case "evalInProject":
       return evalInProject(p);
+    case "screenshot":
+      return screenshotProject(p);
+    case "clickSelector":
+      return clickSelector(p);
     case "inspectProject":
       return inspectProject(p);
     case "listProjects":
@@ -213,6 +217,12 @@ async function selftest(params) {
 }
 
 async function getProjectFiles(params) {
+  return params.platform === "chatgpt"
+    ? getProjectFilesChatgpt(params)
+    : getProjectFilesClaude(params);
+}
+
+async function getProjectFilesClaude(params) {
   const { platform, projectUrl } = params;
   const sel = selectorsFor(platform);
   const tabId = await getProjectTab(projectUrl);
@@ -234,13 +244,56 @@ async function getProjectFiles(params) {
   return { ok: true, data: names.map((name) => ({ name })) };
 }
 
+/** ChatGPT sources are on the Sources tab; rows carry a `group/file-row` class. */
+async function getProjectFilesChatgpt(params) {
+  const tabId = await getProjectTab(params.projectUrl);
+  await attachDebugger(tabId);
+  try {
+    await tclick(tabId, "[role=tab]", "Sources");
+    await sleep(600);
+    const json = await cdpEval(
+      tabId,
+      `JSON.stringify(Array.from(document.querySelectorAll('[class*="file-row"]')).map(function(r){return (r.innerText||"").trim().split("\\n")[0];}).filter(Boolean))`,
+    );
+    const names = JSON.parse(json || "[]");
+    return { ok: true, data: names.map((name) => ({ name })) };
+  } finally {
+    await detachDebugger(tabId);
+  }
+}
+
+/** Trusted CDP click on an attached tab, by selector + optional exact text. */
+async function tclick(tabId, selector, text) {
+  const rect = await cdpEval(
+    tabId,
+    `(function(){
+      var els=Array.from(document.querySelectorAll(${JSON.stringify(selector)}));
+      var t=els.find(function(e){return ${text ? `(e.innerText||"").trim()===${JSON.stringify(text)}` : "true"};});
+      if(!t) return null;
+      t.scrollIntoView({block:"center"});
+      var r=t.getBoundingClientRect();
+      return {x:r.x+r.width/2, y:r.y+r.height/2};
+    })()`,
+  );
+  if (!rect) return false;
+  await cdp(tabId, "Input.dispatchMouseEvent", { type: "mousePressed", x: rect.x, y: rect.y, button: "left", clickCount: 1 });
+  await cdp(tabId, "Input.dispatchMouseEvent", { type: "mouseReleased", x: rect.x, y: rect.y, button: "left", clickCount: 1 });
+  await sleep(700);
+  return true;
+}
+
 async function uploadProjectFile(params) {
+  return params.platform === "chatgpt"
+    ? uploadProjectFileChatgpt(params)
+    : uploadProjectFileClaude(params);
+}
+
+async function uploadProjectFileClaude(params) {
   const { platform, projectUrl, localPath } = params;
   const sel = selectorsFor(platform);
   const tabId = await getProjectTab(projectUrl);
   await attachDebugger(tabId);
   try {
-    // Find the (often hidden) file input and get a CDP objectId for it.
     const objectId = await cdpEvalObjectId(
       tabId,
       `(function(){ var s=${JSON.stringify(sel.fileInput)};
@@ -257,7 +310,78 @@ async function uploadProjectFile(params) {
   }
 }
 
+/**
+ * ChatGPT sources upload: Sources tab -> "Add sources" -> set the modal's file
+ * input directly (avoids the native picker). The modal's file inputs (no id)
+ * exist once it opens.
+ */
+async function uploadProjectFileChatgpt(params) {
+  const { projectUrl, localPath } = params;
+  const tabId = await getProjectTab(projectUrl);
+  await attachDebugger(tabId);
+  try {
+    await tclick(tabId, "[role=tab]", "Sources");
+    if (!(await tclick(tabId, "button", "Add sources"))) {
+      return { ok: false, error: "'Add sources' button not found" };
+    }
+    await sleep(800);
+    const objectId = await cdpEvalObjectId(
+      tabId,
+      `(function(){var inps=Array.from(document.querySelectorAll('input[type="file"]'));var c=inps.filter(function(i){return !i.id;});return c[c.length-1]||null;})()`,
+    );
+    if (!objectId) return { ok: false, error: "sources file input not found (calibration)" };
+    await cdp(tabId, "DOM.setFileInputFiles", { files: [localPath], objectId });
+    await sleep(2500);
+    return { ok: true, data: {} };
+  } finally {
+    await detachDebugger(tabId);
+  }
+}
+
 async function deleteProjectFile(params) {
+  return params.platform === "chatgpt"
+    ? deleteProjectFileChatgpt(params)
+    : deleteProjectFileClaude(params);
+}
+
+/** ChatGPT delete: Sources tab -> row "Source actions" menu -> Delete (-> confirm). */
+async function deleteProjectFileChatgpt(params) {
+  const { projectUrl, name } = params;
+  const tabId = await getProjectTab(projectUrl);
+  await attachDebugger(tabId);
+  try {
+    await tclick(tabId, "[role=tab]", "Sources");
+    await sleep(500);
+    const rect = await cdpEval(
+      tabId,
+      `(function(){var rows=Array.from(document.querySelectorAll('[class*="file-row"]'));
+        for(var i=0;i<rows.length;i++){var r=rows[i];
+          if((r.innerText||"").indexOf(${JSON.stringify(name)})>=0){
+            var b=r.querySelector('button[aria-label="Source actions"]');
+            if(b){b.scrollIntoView({block:"center"});var rc=b.getBoundingClientRect();return {x:rc.x+rc.width/2,y:rc.y+rc.height/2};}}}
+        return null;})()`,
+    );
+    if (!rect) return { ok: true, data: {} }; // already absent
+    // Hover first — "Source actions" is revealed on row hover.
+    await cdp(tabId, "Input.dispatchMouseEvent", { type: "mouseMoved", x: rect.x, y: rect.y });
+    await sleep(250);
+    await cdp(tabId, "Input.dispatchMouseEvent", { type: "mousePressed", x: rect.x, y: rect.y, button: "left", clickCount: 1 });
+    await cdp(tabId, "Input.dispatchMouseEvent", { type: "mouseReleased", x: rect.x, y: rect.y, button: "left", clickCount: 1 });
+    await sleep(700);
+    if (!(await tclick(tabId, "[role=menuitem]", "Delete"))) {
+      return { ok: false, error: "Delete menu item not found" };
+    }
+    await sleep(500);
+    // Best-effort confirmation dialog.
+    await tclick(tabId, '[role=dialog] button', "Delete");
+    await sleep(1000);
+    return { ok: true, data: {} };
+  } finally {
+    await detachDebugger(tabId);
+  }
+}
+
+async function deleteProjectFileClaude(params) {
   const { platform, projectUrl, name } = params;
   const sel = selectorsFor(platform);
   const tabId = await getProjectTab(projectUrl);
@@ -303,6 +427,47 @@ async function deleteProjectFile(params) {
  * (bypasses page CSP), returning the value. Lets the agent self-verify DOM
  * state without adding a named command for every check.
  */
+/**
+ * Trusted click via CDP at the center of the element matching `selector` (and
+ * optional exact `text`). React UIs (ChatGPT tabs) ignore synthetic .click()
+ * but honor dispatched mouse events.
+ */
+async function clickSelector(params) {
+  const tabId = await getProjectTab(params.projectUrl);
+  await attachDebugger(tabId);
+  try {
+    const rect = await cdpEval(
+      tabId,
+      `(function(){
+        var els=Array.from(document.querySelectorAll(${JSON.stringify(params.selector)}));
+        var t=els.find(function(e){return ${params.text ? `(e.innerText||"").trim()===${JSON.stringify(params.text)}` : "true"};});
+        if(!t) return null;
+        t.scrollIntoView({block:"center"});
+        var r=t.getBoundingClientRect();
+        return {x:r.x+r.width/2, y:r.y+r.height/2};
+      })()`,
+    );
+    if (!rect) return { ok: false, error: "element not found" };
+    await cdp(tabId, "Input.dispatchMouseEvent", { type: "mouseMoved", x: rect.x, y: rect.y });
+    await cdp(tabId, "Input.dispatchMouseEvent", { type: "mousePressed", x: rect.x, y: rect.y, button: "left", clickCount: 1 });
+    await cdp(tabId, "Input.dispatchMouseEvent", { type: "mouseReleased", x: rect.x, y: rect.y, button: "left", clickCount: 1 });
+    await sleep(400);
+    return { ok: true, data: rect };
+  } finally {
+    await detachDebugger(tabId);
+  }
+}
+
+/** Captures a PNG screenshot of the project tab (returns a data URL). */
+async function screenshotProject(params) {
+  const tabId = await getProjectTab(params.projectUrl);
+  const tab = await chrome.tabs.get(tabId);
+  await chrome.tabs.update(tabId, { active: true });
+  await sleep(600);
+  const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: "png" });
+  return { ok: true, data: { dataUrl } };
+}
+
 async function evalInProject(params) {
   const { projectUrl, expression } = params;
   if (!expression) return { ok: false, error: "evalInProject requires an expression" };
