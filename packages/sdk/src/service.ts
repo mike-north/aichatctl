@@ -5,6 +5,7 @@ import { z } from "zod";
 import { sendBridgeCommand } from "./bridge/client.js";
 import { BrowserSession } from "./browser/session.js";
 import { DEFAULT_CDP_PORT } from "./config.js";
+import { AppleScriptDriver } from "./drivers/applescript/driver.js";
 import { ExtensionDriver } from "./drivers/extension/driver.js";
 import { createDriver } from "./drivers/factory.js";
 import type { Driver } from "./drivers/driver.js";
@@ -94,6 +95,32 @@ export async function createSeededSessionViaExtension(
   return parsed.data;
 }
 
+/** Options for {@link createSeededSessionViaApplescript}. */
+export interface SeedViaApplescriptOptions {
+  readonly platform: Platform;
+  readonly project: string;
+  readonly prompt: string;
+  readonly send: boolean;
+  readonly skipLoginCheck?: boolean;
+}
+
+/**
+ * Creates a seeded session by driving the user's real Chrome with no extension,
+ * via AppleScript (`osascript`). For locked-down environments where apps are
+ * installable but Chrome extensions are not. Requires Chrome's "Allow JavaScript
+ * from Apple Events".
+ */
+export async function createSeededSessionViaApplescript(
+  options: SeedViaApplescriptOptions,
+): Promise<SeedResult> {
+  const driver = new AppleScriptDriver(options.platform);
+  if (options.skipLoginCheck !== true && !(await driver.isLoggedIn())) {
+    throw new NotLoggedInError(options.platform);
+  }
+  const project = await driver.resolveProject(options.project);
+  return driver.createSeededSession(project, options.prompt, { send: options.send });
+}
+
 /** Reads a prompt from a file, or from stdin when path is "-". */
 export function readPromptSource(source: string): string {
   if (source === "-") {
@@ -127,8 +154,8 @@ export interface RunSyncOptions extends ConnectionOptions {
   readonly dryRun: boolean;
   /** Override the sync-state file path. */
   readonly statePath?: string;
-  /** How to drive the browser: CDP (dedicated profile) or the real-Chrome extension. */
-  readonly transport?: "cdp" | "extension";
+  /** How to drive the browser: CDP (dedicated profile), the real-Chrome extension, or AppleScript. */
+  readonly transport?: "cdp" | "extension" | "applescript";
   /** Bridge daemon port (extension transport). */
   readonly bridgePort?: number;
   /** Bridge token (extension transport). */
@@ -174,6 +201,11 @@ export async function runSync(options: RunSyncOptions): Promise<SyncReport[]> {
         }),
       ]),
     );
+    return syncTargets(drivers);
+  }
+
+  if (options.transport === "applescript") {
+    const drivers = new Map<Platform, Driver>(targets.map((p) => [p, new AppleScriptDriver(p)]));
     return syncTargets(drivers);
   }
 

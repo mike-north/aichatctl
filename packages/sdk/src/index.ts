@@ -25,6 +25,8 @@ export type {
 } from "./drivers/driver.js";
 export { createDriver } from "./drivers/factory.js";
 export { ExtensionDriver } from "./drivers/extension/driver.js";
+export { AppleScriptDriver } from "./drivers/applescript/driver.js";
+export { evalInChromeTab, runAppleScript, AppleScriptError } from "./applescript/runner.js";
 
 export * from "./sync/manifest.js";
 export * from "./sync/plan.js";

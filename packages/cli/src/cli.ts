@@ -7,6 +7,7 @@ import {
   DEFAULT_CDP_PORT,
   PLATFORMS,
   createSeededSession,
+  createSeededSessionViaApplescript,
   createSeededSessionViaExtension,
   doctor,
   getOrCreateBridgeToken,
@@ -48,13 +49,13 @@ function parsePort(value: string): number {
   return n;
 }
 
-type Transport = "cdp" | "extension";
+type Transport = "cdp" | "extension" | "applescript";
 
 function parseTransport(value: string): Transport {
-  if (value === "cdp" || value === "extension") {
+  if (value === "cdp" || value === "extension" || value === "applescript") {
     return value;
   }
-  throw new InvalidArgumentError("transport must be 'cdp' or 'extension'");
+  throw new InvalidArgumentError("transport must be 'cdp', 'extension', or 'applescript'");
 }
 
 function emit(io: IO, json: boolean, human: string, data: unknown): void {
@@ -274,24 +275,25 @@ export function buildProgram(io: IO = defaultIO): Command {
           throw new AichatctlError("Provide a non-empty --seed or --seed-file.");
         }
         const seedToken = opts.token ?? readBridgeToken();
-        const result =
-          opts.transport === "extension"
-            ? await createSeededSessionViaExtension({
-                platform: opts.platform,
-                project: opts.project,
-                prompt,
-                send: opts.send,
-                background: opts.background,
-                bridgePort: opts.bridgePort,
-                ...(seedToken !== undefined ? { token: seedToken } : {}),
-              })
-            : await createSeededSession({
-                platform: opts.platform,
-                project: opts.project,
-                prompt,
-                send: opts.send,
-                port: opts.port,
-              });
+        const common = {
+          platform: opts.platform,
+          project: opts.project,
+          prompt,
+          send: opts.send,
+        };
+        let result;
+        if (opts.transport === "extension") {
+          result = await createSeededSessionViaExtension({
+            ...common,
+            background: opts.background,
+            bridgePort: opts.bridgePort,
+            ...(seedToken !== undefined ? { token: seedToken } : {}),
+          });
+        } else if (opts.transport === "applescript") {
+          result = await createSeededSessionViaApplescript(common);
+        } else {
+          result = await createSeededSession({ ...common, port: opts.port });
+        }
         emit(
           io,
           opts.json,
