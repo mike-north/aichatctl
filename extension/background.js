@@ -697,18 +697,18 @@ async function setProjectInstructions(params) {
       await sleep(1000);
       return { ok: true, data: {} };
     }
-    // chatgpt: best-effort until calibrated.
-    const sel = selectorsFor(platform);
-    const focused = await cdpEval(
-      tabId,
-      `(function(){ var s=${JSON.stringify(sel.instructions)};
-        for (var i=0;i<s.length;i++){var el=document.querySelector(s[i]);
-          if(el){el.focus(); if(el.select)el.select(); return true;}} return false; })()`,
-    );
-    if (!focused) return { ok: false, error: "instructions editor not found (selectors need calibration)" };
-    await cdp(tabId, "Input.insertText", { text });
-    await sleep(800);
-    return { ok: true, data: {} };
+    // chatgpt: DEFERRED. The instructions field IS reachable — sidebar
+    // "Open project options for <name>" -> "Project settings" -> textarea#instructions
+    // (aria "Instructions") — and text can be placed in it (incl. via the React
+    // native-setter + input/change events). But ChatGPT's save does NOT fire via
+    // automation: blur, debounce waits, the dialog Close button, and Escape all
+    // leave the field empty on reload. Until the save trigger is identified, fail
+    // honestly rather than corrupt sync state with a false success.
+    void text;
+    return {
+      ok: false,
+      error: "ChatGPT project instructions sync is not yet supported (save trigger uncalibrated).",
+    };
   } finally {
     await detachDebugger(tabId);
   }
