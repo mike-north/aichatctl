@@ -1,7 +1,29 @@
+import { readFileSync, statSync } from "node:fs";
+import { basename, extname } from "node:path";
+
 import { evalInChromeTab } from "../../applescript/runner.js";
 import { AichatctlError, ProjectNotFoundError } from "../../errors.js";
 import type { Platform, Project, RemoteFile, SeedResult } from "../../types.js";
 import type { CreateSessionOptions, Driver, SelftestResult } from "../driver.js";
+
+const MIME_BY_EXT: Record<string, string> = {
+  ".md": "text/markdown",
+  ".markdown": "text/markdown",
+  ".txt": "text/plain",
+  ".json": "application/json",
+  ".js": "text/javascript",
+  ".ts": "text/plain",
+  ".py": "text/x-python",
+  ".html": "text/html",
+  ".css": "text/css",
+  ".csv": "text/csv",
+  ".yaml": "text/yaml",
+  ".yml": "text/yaml",
+};
+
+function mimeForExt(ext: string): string {
+  return MIME_BY_EXT[ext.toLowerCase()] ?? "text/plain";
+}
 
 const CLAUDE_ID = /\/project\/([^/?#]+)/;
 const CHATGPT_ID = /\/g\/(g-p-[^/?#]+)/;
@@ -125,14 +147,51 @@ export class AppleScriptDriver implements Driver {
         return JSON.stringify(out);`)) as string[];
       return names.map((name) => ({ name }));
     }
-    // ChatGPT sources require switching the Sources tab (trusted click) — phase 2.
-    throw new AichatctlError("getProjectFiles for ChatGPT via the AppleScript transport is not yet supported.");
+    // ChatGPT sources via the sidebar API (the Sources tab needs a trusted click).
+    const files = (await this.#evalProject(project, `
+      function sx(m,u,t){var x=new XMLHttpRequest();x.open(m,u,false);if(t)x.setRequestHeader('Authorization','Bearer '+t);x.send();return x.responseText;}
+      var s=JSON.parse(sx('GET','/api/auth/session'));var token=s.accessToken;
+      var pid=${JSON.stringify(project.id)};
+      var sb=JSON.parse(sx('GET','/backend-api/gizmos/snorlax/sidebar',token));
+      var item=(sb.items||[]).find(function(it){return it.gizmo&&it.gizmo.id===pid;});
+      var files=(item&&(item.files||(item.gizmo&&item.gizmo.files)))||[];
+      return JSON.stringify(files.map(function(f){return {name:f.name};}));`)) as { name: string }[];
+    return files;
   }
 
-  public uploadProjectFile(): Promise<void> {
-    throw new AichatctlError(
-      "uploadProjectFile via the AppleScript transport is not yet supported (native file picker — phase 2).",
-    );
+  public async uploadProjectFile(project: Project, localPath: string): Promise<void> {
+    if (this.platform !== "chatgpt") {
+      throw new AichatctlError(
+        "uploadProjectFile for Claude via the AppleScript transport is not yet supported.",
+      );
+    }
+    // No native file picker (would need Accessibility). Replicate ChatGPT's own
+    // upload sequence via synchronous XHR: register -> blob PUT -> process -> associate.
+    const content = readFileSync(localPath, "utf8");
+    const size = Buffer.byteLength(content, "utf8");
+    const name = basename(localPath);
+    const mime = mimeForExt(extname(localPath));
+    const lastModified = Math.round(statSync(localPath).mtimeMs);
+    const r = (await this.#evalProject(
+      project,
+      `
+      function sx(m,u,t,b,ct){var x=new XMLHttpRequest();x.open(m,u,false);if(t)x.setRequestHeader('Authorization','Bearer '+t);if(ct)x.setRequestHeader('Content-Type',ct);x.send(b||null);return {status:x.status,text:x.responseText};}
+      var s=JSON.parse(sx('GET','/api/auth/session').text);var token=s.accessToken;
+      var pid=${JSON.stringify(project.id)},name=${JSON.stringify(name)},mime=${JSON.stringify(mime)},size=${String(size)},lm=${String(lastModified)};
+      var content=${JSON.stringify(content)};
+      var reg=JSON.parse(sx('POST','/backend-api/files',token,JSON.stringify({file_name:name,file_size:size,use_case:'agent',gizmo_id:pid,timezone_offset_min:new Date().getTimezoneOffset(),reset_rate_limits:false,mime_type:mime,entry_surface:'project_sources',selection_method:'drag_drop',client_resolved_mime_type:mime,mime_resolution_source:'filename_extension',store_in_library:false}),'application/json').text);
+      if(!reg.upload_url)return JSON.stringify({ok:false,step:'register'});
+      var put=new XMLHttpRequest();put.open('PUT',reg.upload_url,false);put.setRequestHeader('x-ms-blob-type','BlockBlob');put.setRequestHeader('Content-Type',mime);put.send(content);
+      if(put.status<200||put.status>=300)return JSON.stringify({ok:false,step:'put',status:put.status});
+      sx('POST','/backend-api/files/process_upload_stream',token,JSON.stringify({file_id:reg.file_id,use_case:'agent',gizmo_id:pid,index_for_retrieval:true,file_name:name,entry_surface:'project_sources',metadata:{store_in_library:false,is_temporary_chat:false,is_project_thread:true}}),'application/json');
+      var assoc=sx('POST','/backend-api/projects/'+pid+'/files',token,JSON.stringify({files:[{file_id:reg.file_id,name:name,size:size,type:mime,last_modified:lm,location:'fs'}]}),'application/json');
+      return JSON.stringify({ok:assoc.status>=200&&assoc.status<300,step:'associate',status:assoc.status});`,
+    )) as { ok: boolean; step?: string; status?: number };
+    if (!r.ok) {
+      throw new AichatctlError(
+        `ChatGPT upload failed at ${r.step ?? "?"} (HTTP ${String(r.status ?? "?")}).`,
+      );
+    }
   }
 
   public deleteProjectFile(): Promise<void> {
