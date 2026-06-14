@@ -111,6 +111,38 @@ you added manually in the web UI are left untouched.
   `PATCH /backend-api/projects/{id}` from the page context — it carries your live
   session (cookies + bearer from `/api/auth/session`); no credentials are stored.
 
+## Extension-free transport (AppleScript) — for locked-down Macs
+
+Some managed Macs allow installing apps but **block Chrome extensions**. For those,
+`--transport applescript` drives your real, logged-in Chrome with no extension —
+`osascript` executes JS in the tab. It needs **one toggle**: Chrome → View →
+Developer → **Allow JavaScript from Apple Events**.
+
+```bash
+aichatctl session create --transport applescript --platform claude --project "My Project" --seed-file notes.md --json
+aichatctl sync --transport applescript          # ChatGPT file sync + instructions
+```
+
+What works extension-free today:
+
+| Operation | Claude | ChatGPT |
+| --- | :-: | :-: |
+| Seed session, resolve project, login check | ✅ | ✅ |
+| Read project files | ✅ | ✅ (sidebar API) |
+| Instructions sync | UI flow | ✅ (internal API) |
+| File upload | follow-on | ✅ (internal API) |
+| File delete | follow-on | follow-on |
+
+Notes:
+- AppleScript's `execute javascript` doesn't await promises, so page JS uses
+  synchronous `XMLHttpRequest` for network calls.
+- ChatGPT file upload uses ChatGPT's own endpoints (register → blob PUT →
+  process → associate) rather than the native file picker, which would need
+  Accessibility permission (often MDM-blocked in exactly these environments).
+- **Hammerspoon** is an optional *host*, not a dependency — the transport is pure
+  `osascript`. `hammerspoon/aichatctl.lua` binds hotkeys to the CLI for those who
+  run Hammerspoon.
+
 ## Diagnostics & calibration
 
 Web UIs drift. When something stops resolving, the extension exposes diagnostic
