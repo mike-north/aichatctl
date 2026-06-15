@@ -3,7 +3,8 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Drive the Claude.ai and ChatGPT web UIs from agents: sync project files and seed chat sessions.",
+  "license": "MIT",
+  "description": "Drive Claude.ai, ChatGPT, Gemini, and NotebookLM web UIs from agents: sync project files, seed chat sessions, and create podcasts.",
   "engines": {
     "node": ">=20"
   },

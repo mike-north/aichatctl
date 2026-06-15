@@ -221,7 +221,8 @@ pnpm test       # run the test suite
 pnpm lint       # eslint
 ```
 
-## Status
+## Status & license
 
 Early and personal — a productivity tool for the author's own accounts, not a
-published package. APIs and commands may change. No license is granted yet.
+published package. APIs and commands may change. Released under the
+[MIT License](LICENSE).
