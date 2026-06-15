@@ -98,6 +98,27 @@ the mobile app and continue (e.g. tap voice). `--no-send` stages the prompt
 without submitting. Sync only ever deletes files **it** previously synced; files
 you added manually in the web UI are left untouched.
 
+## NotebookLM podcasts
+
+Create a NotebookLM notebook from local files and/or URLs and kick off a
+customized Audio Overview ("podcast") — then open the notebook on mobile to
+listen once it finishes rendering. AppleScript transport only (NotebookLM is a
+Google product; macOS).
+
+```bash
+aichatctl notebook create \
+  --source docs/specs --source README.md \
+  --source-url https://docs.google.com/document/d/<id> \
+  --format deep-dive --length default \
+  --prompt "Focus on the migration plan for someone new to the codebase" --json
+```
+
+Each `--source` file (directories expand to their files) becomes a pasted text
+source; each `--source-url` becomes its **own** website source (so a Google Doc
+URL lands as that document). Formats: `deep-dive` (default), `brief`, `critique`,
+`debate`. Lengths: `short`, `default`, `long`. The command returns the notebook
+`url` once generation is kicked off — it does not wait for the audio to render.
+
 ## How it works
 
 - **UI-driven, deterministically.** The per-platform drivers run fixed code

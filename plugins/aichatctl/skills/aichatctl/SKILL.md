@@ -1,6 +1,6 @@
 ---
 name: aichatctl
-description: Use when the user wants to sync repo files (and instructions) into a Claude.ai or ChatGPT project, keep that project up to date with a git source of truth, or create a new seeded web chat session (e.g. to continue by voice on mobile — Claude, ChatGPT, or Gemini). Drives the real, logged-in web UIs via the deterministic `aichatctl` CLI — the agent reasons about WHAT to do; the CLI does the browser mechanics.
+description: Use when the user wants to mirror repo files (and instructions) into a Claude.ai or ChatGPT project so it tracks a git source of truth, start a new seeded chat session to continue by voice on mobile (Claude, ChatGPT, or Gemini), or turn files and links into a NotebookLM notebook with a generated audio podcast. The agent decides WHAT to sync or say; the aichatctl CLI performs the actions.
 ---
 
 # aichatctl
@@ -71,6 +71,24 @@ aichatctl session create --transport applescript \
 The JSON result includes the conversation `url`. Give it to the user; they open
 the platform's mobile app and continue. `--no-send` stages the prompt without
 submitting.
+
+## Use case 3 — NotebookLM podcast
+
+Turn files and/or links into a NotebookLM notebook with a generated audio
+overview ("podcast") the user can listen to on mobile. You compose the
+host-focus prompt; the CLI creates the notebook, adds the sources, and starts
+generation.
+
+```bash
+aichatctl notebook create \
+  --source <file-or-dir>... --source-url <url>... \
+  --format deep-dive --length default --prompt "<focus for the hosts>" --json
+```
+
+Each file becomes a text source and each URL its own source. Formats: `deep-dive`
+(default), `brief`, `critique`, `debate`; lengths: `short`, `default`, `long`.
+Returns the notebook `url` once generation is kicked off (the audio renders in the
+background — give the user the URL to open later).
 
 ## Reference
 
