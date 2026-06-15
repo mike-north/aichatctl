@@ -64,3 +64,18 @@ export class SelectorError extends AichatctlError {
 export class ConfigError extends AichatctlError {
   public override readonly name = "ConfigError";
 }
+
+/**
+ * Thrown when an operation isn't supported for a platform/transport — e.g.
+ * Gemini has no project file library or instructions to sync, and is reachable
+ * only via the AppleScript transport.
+ */
+export class UnsupportedOperationError extends AichatctlError {
+  public override readonly name = "UnsupportedOperationError";
+  public constructor(
+    public readonly platform: string,
+    public readonly operation: string,
+  ) {
+    super(`Operation "${operation}" is not supported on ${platform}.`);
+  }
+}

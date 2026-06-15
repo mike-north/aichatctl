@@ -10,20 +10,23 @@ Steps:
 
 1. Confirm a manifest exists at `aichatctl.config.yaml` (repo root). If not, help
    the user create one — per platform: the target `project` (name, URL, or id), an
-   optional `instructions` markdown path, and `files` globs.
-2. **Preview** the plan:
+   optional `instructions` markdown path, and `files` globs. (Gemini has no file
+   library and is not a sync target.)
+2. **Preview** the plan (use the AppleScript transport on macOS; it needs Chrome's
+   "Allow JavaScript from Apple Events" toggle — preflight with
+   `aichatctl doctor --transport applescript --json`):
    ```bash
-   aichatctl sync --transport extension --dry-run --json $ARGUMENTS
+   aichatctl sync --transport applescript --dry-run --json $ARGUMENTS
    ```
-   If this errors with "No extension connected to the bridge", tell the user to run
-   `aichatctl bridge serve` and load the unpacked `extension/` in Chrome (and paste
-   the token from `aichatctl bridge token` into its options page once), then stop.
-   Otherwise summarize the upload/replace/delete/noop steps + instructions plan.
+   If `doctor` reports the toggle is off or a platform isn't logged in, tell the
+   user how to fix it, then stop. (On non-macOS, use `--transport cdp` after
+   `aichatctl browser launch`.) Otherwise summarize the
+   upload/replace/delete/noop steps + instructions plan.
 3. If the plan looks right, apply it:
    ```bash
-   aichatctl sync --transport extension --json $ARGUMENTS
+   aichatctl sync --transport applescript --json $ARGUMENTS
    ```
 4. Report what changed. Note that only files aichatctl previously synced are ever
    deleted; manually-added files in the web UI are left alone.
 
-Do not drive the browser yourself — the CLI/extension handles all of that.
+Do not drive the browser yourself — the CLI handles all of that.

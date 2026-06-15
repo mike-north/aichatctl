@@ -3,7 +3,7 @@ import { isCdpReachable } from "./browser/session.js";
 import { DEFAULT_CDP_PORT } from "./config.js";
 import { createDriver } from "./drivers/factory.js";
 import type { SelftestResult } from "./drivers/driver.js";
-import { PLATFORMS } from "./types.js";
+import { SYNC_PLATFORMS } from "./types.js";
 import type { Platform } from "./types.js";
 
 /** Aggregated health report for `aichatctl doctor`. */
@@ -29,7 +29,9 @@ export interface DoctorOptions {
  */
 export async function doctor(options: DoctorOptions = {}): Promise<DoctorReport> {
   const port = options.port ?? DEFAULT_CDP_PORT;
-  const platforms = options.platforms ?? PLATFORMS;
+  // Gemini is AppleScript-only (no CDP driver); the CDP doctor probes the
+  // CDP-capable platforms. Use `doctor --transport applescript` for Gemini.
+  const platforms = options.platforms ?? SYNC_PLATFORMS;
   const reachable = await isCdpReachable(port);
   if (!reachable) {
     return { cdpPort: port, cdpReachable: false, platforms: [], ok: false };

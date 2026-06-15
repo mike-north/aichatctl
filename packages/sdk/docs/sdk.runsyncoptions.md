@@ -120,5 +120,26 @@ _(Optional)_ Override the sync-state file path.
 
 
 </td></tr>
+<tr><td>
+
+[transport?](./sdk.runsyncoptions.transport.md)
+
+
+</td><td>
+
+`readonly`
+
+
+</td><td>
+
+"cdp" \| "applescript"
+
+
+</td><td>
+
+_(Optional)_ How to drive the browser: CDP (dedicated profile) or AppleScript (real Chrome, macOS).
+
+
+</td></tr>
 </tbody></table>
 

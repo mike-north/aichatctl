@@ -1,15 +1,11 @@
 import { readFileSync } from "node:fs";
 
-import { z } from "zod";
-
-import { sendBridgeCommand } from "./bridge/client.js";
 import { BrowserSession } from "./browser/session.js";
 import { DEFAULT_CDP_PORT } from "./config.js";
 import { AppleScriptDriver } from "./drivers/applescript/driver.js";
-import { ExtensionDriver } from "./drivers/extension/driver.js";
 import { createDriver } from "./drivers/factory.js";
 import type { Driver } from "./drivers/driver.js";
-import { AichatctlError, NotLoggedInError } from "./errors.js";
+import { NotLoggedInError } from "./errors.js";
 import { loadManifest, manifestForPlatform } from "./sync/manifest.js";
 import { syncPlatform } from "./sync/sync.js";
 import type { SyncReport } from "./sync/sync.js";
@@ -47,52 +43,6 @@ export async function createSeededSession(options: SeedSessionOptions): Promise<
   } finally {
     await session.close();
   }
-}
-
-const seedResultSchema = z.object({ url: z.string(), sent: z.boolean() });
-
-/** Options for {@link createSeededSessionViaExtension}. */
-export interface SeedViaExtensionOptions {
-  readonly platform: Platform;
-  /** Project name or URL — resolved inside the browser by the extension. */
-  readonly project: string;
-  readonly prompt: string;
-  readonly send: boolean;
-  /** Use the chrome.debugger path (trusted input, background tab). */
-  readonly background?: boolean;
-  /** Bridge daemon port. */
-  readonly bridgePort?: number;
-  /** Shared bridge token, if the daemon requires one. */
-  readonly token?: string;
-}
-
-/**
- * Creates a seeded session by driving the user's real Chrome through the
- * in-browser extension over the bridge — using the real logged-in session and
- * extensions, with no CDP remote-debugging port required.
- */
-export async function createSeededSessionViaExtension(
-  options: SeedViaExtensionOptions,
-): Promise<SeedResult> {
-  const data = await sendBridgeCommand(
-    "seedSession",
-    {
-      platform: options.platform,
-      project: options.project,
-      prompt: options.prompt,
-      send: options.send,
-      background: options.background ?? false,
-    },
-    {
-      ...(options.bridgePort !== undefined ? { port: options.bridgePort } : {}),
-      ...(options.token !== undefined ? { token: options.token } : {}),
-    },
-  );
-  const parsed = seedResultSchema.safeParse(data);
-  if (!parsed.success) {
-    throw new AichatctlError(`Extension returned an unexpected seedSession result: ${JSON.stringify(data)}`);
-  }
-  return parsed.data;
 }
 
 /** Per-platform readiness for the AppleScript transport. */
@@ -199,12 +149,8 @@ export interface RunSyncOptions extends ConnectionOptions {
   readonly dryRun: boolean;
   /** Override the sync-state file path. */
   readonly statePath?: string;
-  /** How to drive the browser: CDP (dedicated profile), the real-Chrome extension, or AppleScript. */
-  readonly transport?: "cdp" | "extension" | "applescript";
-  /** Bridge daemon port (extension transport). */
-  readonly bridgePort?: number;
-  /** Bridge token (extension transport). */
-  readonly token?: string;
+  /** How to drive the browser: CDP (dedicated profile) or AppleScript (real Chrome, macOS). */
+  readonly transport?: "cdp" | "applescript";
 }
 
 /**
@@ -214,8 +160,11 @@ export interface RunSyncOptions extends ConnectionOptions {
  */
 export async function runSync(options: RunSyncOptions): Promise<SyncReport[]> {
   const manifest = loadManifest(options.configPath);
-  const targets = (options.platforms ?? PLATFORMS).filter(
-    (p) => manifest.platforms[p] !== undefined,
+  // Sync targets come from the manifest's configured (syncable) platforms; Gemini
+  // has no file library and is never a sync target.
+  const configured = Object.keys(manifest.platforms) as Platform[];
+  const targets = configured.filter(
+    (p) => options.platforms === undefined || options.platforms.includes(p),
   );
 
   const syncTargets = async (drivers: Map<Platform, Driver>): Promise<SyncReport[]> => {
@@ -235,19 +184,6 @@ export async function runSync(options: RunSyncOptions): Promise<SyncReport[]> {
     }
     return reports;
   };
-
-  if (options.transport === "extension") {
-    const drivers = new Map<Platform, Driver>(
-      targets.map((p) => [
-        p,
-        new ExtensionDriver(p, {
-          ...(options.bridgePort !== undefined ? { bridgePort: options.bridgePort } : {}),
-          ...(options.token !== undefined ? { token: options.token } : {}),
-        }),
-      ]),
-    );
-    return syncTargets(drivers);
-  }
 
   if (options.transport === "applescript") {
     const drivers = new Map<Platform, Driver>(targets.map((p) => [p, new AppleScriptDriver(p)]));

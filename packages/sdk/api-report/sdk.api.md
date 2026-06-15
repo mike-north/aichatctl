@@ -16,6 +16,57 @@ export class AichatctlError extends Error {
 }
 
 // @public
+export interface ApplescriptDoctorReport {
+    readonly jsFromAppleEventsEnabled: boolean;
+    readonly ok: boolean;
+    // (undocumented)
+    readonly platforms: readonly ApplescriptPlatformStatus[];
+}
+
+// @public
+export class AppleScriptDriver implements Driver {
+    constructor(platform: Platform);
+    // (undocumented)
+    createSeededSession(project: Project, prompt: string, options: CreateSessionOptions): Promise<SeedResult>;
+    // (undocumented)
+    deleteProjectFile(project: Project, remoteName: string): Promise<void>;
+    // (undocumented)
+    getProjectFiles(project: Project): Promise<RemoteFile[]>;
+    // (undocumented)
+    getProjectInstructions(project: Project): Promise<string>;
+    // (undocumented)
+    isLoggedIn(): Promise<boolean>;
+    // (undocumented)
+    listProjects(): Promise<Project[]>;
+    // (undocumented)
+    readonly platform: Platform;
+    // (undocumented)
+    resolveProject(ref: string): Promise<Project>;
+    // (undocumented)
+    selftest(): Promise<SelftestResult>;
+    // (undocumented)
+    setProjectInstructions(project: Project, text: string): Promise<void>;
+    // (undocumented)
+    uploadProjectFile(project: Project, localPath: string): Promise<void>;
+}
+
+// @public
+export class AppleScriptError extends AichatctlError {
+    // (undocumented)
+    readonly name = "AppleScriptError";
+}
+
+// @public
+export interface ApplescriptPlatformStatus {
+    // (undocumented)
+    readonly error?: string;
+    // (undocumented)
+    readonly loggedIn: boolean;
+    // (undocumented)
+    readonly platform: Platform;
+}
+
+// @public
 export class BrowserNotReachableError extends AichatctlError {
     constructor(endpoint: string, options?: {
         cause?: unknown;
@@ -68,6 +119,9 @@ export function createDriver(platform: Platform, session: BrowserSession): Drive
 export function createSeededSession(options: SeedSessionOptions): Promise<SeedResult>;
 
 // @public
+export function createSeededSessionViaApplescript(options: SeedViaApplescriptOptions): Promise<SeedResult>;
+
+// @public
 export interface CreateSessionOptions {
     readonly send: boolean;
 }
@@ -88,6 +142,9 @@ export interface DesiredFile {
 
 // @public
 export function doctor(options?: DoctorOptions): Promise<DoctorReport>;
+
+// @public
+export function doctorApplescript(platforms?: readonly Platform[]): Promise<ApplescriptDoctorReport>;
 
 // @public
 export interface DoctorOptions {
@@ -122,6 +179,11 @@ export interface Driver {
     setProjectInstructions(project: Project, text: string): Promise<void>;
     uploadProjectFile(project: Project, localPath: string): Promise<void>;
 }
+
+// Warning: (ae-forgotten-export) The symbol "EvalOptions" needs to be exported by the entry point index.d.ts
+//
+// @public
+export function evalInChromeTab(jsCode: string, options: EvalOptions): Promise<string>;
 
 // @public
 export function findChromeExecutable(): string | undefined;
@@ -222,7 +284,7 @@ export interface PlanInput {
 }
 
 // @public
-export type Platform = "claude" | "chatgpt";
+export type Platform = "claude" | "chatgpt" | "gemini";
 
 // Warning: (ae-forgotten-export) The symbol "platformManifestSchema" needs to be exported by the entry point index.d.ts
 //
@@ -274,6 +336,9 @@ export interface ResolvedFile extends DesiredFile {
 }
 
 // @public
+export function runAppleScript(script: string, timeoutMs?: number): Promise<string>;
+
+// @public
 export function runSync(options: RunSyncOptions): Promise<SyncReport[]>;
 
 // @public
@@ -282,6 +347,7 @@ export interface RunSyncOptions extends ConnectionOptions {
     readonly dryRun: boolean;
     readonly platforms?: readonly Platform[];
     readonly statePath?: string;
+    readonly transport?: "cdp" | "applescript";
 }
 
 // @public
@@ -300,6 +366,20 @@ export interface SeedSessionOptions extends ConnectionOptions {
     readonly project: string;
     readonly prompt: string;
     readonly send: boolean;
+    readonly skipLoginCheck?: boolean;
+}
+
+// @public
+export interface SeedViaApplescriptOptions {
+    // (undocumented)
+    readonly platform: Platform;
+    // (undocumented)
+    readonly project: string;
+    // (undocumented)
+    readonly prompt: string;
+    // (undocumented)
+    readonly send: boolean;
+    // (undocumented)
     readonly skipLoginCheck?: boolean;
 }
 
@@ -332,6 +412,9 @@ export interface SelftestResult {
     // (undocumented)
     readonly probes: readonly SelectorProbe[];
 }
+
+// @public
+export const SYNC_PLATFORMS: readonly Platform[];
 
 // @public
 export type SyncAction = "upload" | "replace" | "delete" | "noop";
@@ -372,6 +455,17 @@ export interface SyncStep {
     readonly action: SyncAction;
     readonly name: string;
     readonly reason: string;
+}
+
+// @public
+export class UnsupportedOperationError extends AichatctlError {
+    constructor(platform: string, operation: string);
+    // (undocumented)
+    readonly name = "UnsupportedOperationError";
+    // (undocumented)
+    readonly operation: string;
+    // (undocumented)
+    readonly platform: string;
 }
 
 ```

@@ -6,8 +6,10 @@
 
 A supported web AI chat platform.
 
+`claude` and `chatgpt` support the full feature set (project file sync, instructions, seeded sessions). `gemini` is \*\*seed-sessions only\*\* — it has no project file library or project instructions to sync — and is reachable only via the AppleScript transport.
+
 **Signature:**
 
 ```typescript
-export type Platform = "claude" | "chatgpt";
+export type Platform = "claude" | "chatgpt" | "gemini";
 ```

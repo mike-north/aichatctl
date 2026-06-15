@@ -11,7 +11,6 @@ export default tseslint.config(
       "**/coverage/**",
       "**/node_modules/**",
       "plugins/**",
-      "extension/**",
       "packages/sdk/docs/**",
       "packages/sdk/api-report/**",
       "eslint.config.js",

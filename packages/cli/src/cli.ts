@@ -2,18 +2,12 @@ import { Command, CommanderError, InvalidArgumentError } from "commander";
 
 import {
   AichatctlError,
-  BridgeServer,
-  DEFAULT_BRIDGE_PORT,
   DEFAULT_CDP_PORT,
   PLATFORMS,
   createSeededSession,
   createSeededSessionViaApplescript,
-  createSeededSessionViaExtension,
   doctor,
   doctorApplescript,
-  getOrCreateBridgeToken,
-  readBridgeToken,
-  sendBridgeCommand,
   launchChrome,
   listProjects,
   planHasChanges,
@@ -50,13 +44,13 @@ function parsePort(value: string): number {
   return n;
 }
 
-type Transport = "cdp" | "extension" | "applescript";
+type Transport = "cdp" | "applescript";
 
 function parseTransport(value: string): Transport {
-  if (value === "cdp" || value === "extension" || value === "applescript") {
+  if (value === "cdp" || value === "applescript") {
     return value;
   }
-  throw new InvalidArgumentError("transport must be 'cdp', 'extension', or 'applescript'");
+  throw new InvalidArgumentError("transport must be 'cdp' or 'applescript'");
 }
 
 function emit(io: IO, json: boolean, human: string, data: unknown): void {
@@ -92,71 +86,6 @@ export function buildProgram(io: IO = defaultIO): Command {
       io.out(`Launched Chrome (pid ${String(result.pid ?? "?")}) on port ${String(opts.port)}.`);
       io.out(`Profile: ${result.userDataDir}`);
       io.out("If this is the first launch, sign in to claude.ai and chatgpt.com in that window.");
-    });
-
-  // bridge serve ---------------------------------------------------------------
-  const bridge = program.command("bridge").description("Run the localhost bridge to the browser extension");
-  bridge
-    .command("serve")
-    .description("Start the long-running bridge daemon the extension connects to")
-    .option("--bridge-port <port>", "bridge port", parsePort, DEFAULT_BRIDGE_PORT)
-    .option("--token <token>", "shared secret (defaults to the stored token)")
-    .option("--no-auth", "run without a token (insecure; localhost only)")
-    .action(async (opts: { bridgePort: number; token?: string; auth: boolean }) => {
-      const token = !opts.auth ? undefined : (opts.token ?? getOrCreateBridgeToken());
-      const server = new BridgeServer({
-        port: opts.bridgePort,
-        log: (line) => {
-          io.err(line);
-        },
-        ...(token !== undefined ? { token } : {}),
-      });
-      await server.start();
-      io.out(`Bridge daemon listening on 127.0.0.1:${String(opts.bridgePort)}.`);
-      io.out("Load the aichatctl extension in Chrome; it will connect automatically.");
-      if (token !== undefined) {
-        io.out(`Token: ${token}`);
-        io.out("Set this once in the aichatctl extension's options page.");
-      } else {
-        io.err("warning: --no-auth set; any local process can drive the extension.");
-      }
-      // Block until interrupted so the daemon stays up.
-      await new Promise<void>((resolve) => {
-        process.on("SIGINT", () => {
-          void server.stop().then(resolve);
-        });
-        process.on("SIGTERM", () => {
-          void server.stop().then(resolve);
-        });
-      });
-    });
-
-  bridge
-    .command("token")
-    .description("Print the bridge token (creating it on first use)")
-    .action(() => {
-      io.out(getOrCreateBridgeToken());
-    });
-
-  bridge
-    .command("call <action>")
-    .description("Send a raw command to the connected extension (diagnostics)")
-    .option("--params <json>", "JSON params object", "{}")
-    .option("--bridge-port <port>", "bridge port", parsePort, DEFAULT_BRIDGE_PORT)
-    .option("--token <token>", "shared secret")
-    .action(async (action: string, opts: { params: string; bridgePort: number; token?: string }) => {
-      let params: unknown;
-      try {
-        params = JSON.parse(opts.params);
-      } catch {
-        throw new AichatctlError("--params must be valid JSON");
-      }
-      const token = opts.token ?? readBridgeToken();
-      const data = await sendBridgeCommand(action, params, {
-        port: opts.bridgePort,
-        ...(token !== undefined ? { token } : {}),
-      });
-      io.out(JSON.stringify(data, null, 2));
     });
 
   // doctor ---------------------------------------------------------------------
@@ -220,9 +149,7 @@ export function buildProgram(io: IO = defaultIO): Command {
     .option("-c, --config <path>", "manifest path", "aichatctl.config.yaml")
     .option("--platform <platform>", "limit to one platform", parsePlatform)
     .option("--dry-run", "compute the plan without making changes", false)
-    .option("--transport <t>", "cdp | extension", parseTransport, "cdp")
-    .option("--bridge-port <port>", "bridge port (extension transport)", parsePort, DEFAULT_BRIDGE_PORT)
-    .option("--token <token>", "bridge token (extension transport)")
+    .option("--transport <t>", "cdp | applescript", parseTransport, "cdp")
     .option("--json", "machine-readable output", false)
     .action(
       async (opts: {
@@ -230,19 +157,14 @@ export function buildProgram(io: IO = defaultIO): Command {
         platform?: Platform;
         dryRun: boolean;
         transport: Transport;
-        bridgePort: number;
-        token?: string;
         port: number;
         json: boolean;
       }) => {
-        const syncToken = opts.token ?? readBridgeToken();
         const reports = await runSync({
           configPath: opts.config,
           dryRun: opts.dryRun,
           port: opts.port,
           transport: opts.transport,
-          bridgePort: opts.bridgePort,
-          ...(syncToken !== undefined ? { token: syncToken } : {}),
           ...(opts.platform ? { platforms: [opts.platform] } : {}),
         });
         const lines: string[] = [];
@@ -266,15 +188,15 @@ export function buildProgram(io: IO = defaultIO): Command {
   const session = program.command("session").description("Manage chat sessions");
   portOption(session.command("create"))
     .description("Create a new chat session in a project, seeded with a prompt")
-    .requiredOption("--platform <platform>", "claude | chatgpt", parsePlatform)
-    .requiredOption("--project <ref>", "project name, URL, or id")
+    .requiredOption("--platform <platform>", "claude | chatgpt | gemini", parsePlatform)
+    .requiredOption(
+      "--project <ref>",
+      'project name, URL, or id (Gemini: a Gem URL/id, or "new" for a plain chat)',
+    )
     .option("--seed <text>", "seed prompt text")
     .option("--seed-file <path>", 'read seed prompt from a file ("-" for stdin)')
     .option("--no-send", "stage the prompt without submitting it")
-    .option("--transport <t>", "cdp | extension", parseTransport, "cdp")
-    .option("--background", "extension transport: seed in a background tab via chrome.debugger", false)
-    .option("--bridge-port <port>", "bridge port (extension transport)", parsePort, DEFAULT_BRIDGE_PORT)
-    .option("--token <token>", "bridge token (extension transport)")
+    .option("--transport <t>", "cdp | applescript (gemini: applescript only)", parseTransport, "cdp")
     .option("--json", "machine-readable output", false)
     .action(
       async (opts: {
@@ -284,9 +206,6 @@ export function buildProgram(io: IO = defaultIO): Command {
         seedFile?: string;
         send: boolean;
         transport: Transport;
-        background: boolean;
-        bridgePort: number;
-        token?: string;
         port: number;
         json: boolean;
       }) => {
@@ -294,7 +213,11 @@ export function buildProgram(io: IO = defaultIO): Command {
         if (prompt === undefined || prompt.trim().length === 0) {
           throw new AichatctlError("Provide a non-empty --seed or --seed-file.");
         }
-        const seedToken = opts.token ?? readBridgeToken();
+        if (opts.platform === "gemini" && opts.transport !== "applescript") {
+          throw new AichatctlError(
+            "Gemini is supported only via the AppleScript transport. Re-run with --transport applescript.",
+          );
+        }
         const common = {
           platform: opts.platform,
           project: opts.project,
@@ -302,14 +225,7 @@ export function buildProgram(io: IO = defaultIO): Command {
           send: opts.send,
         };
         let result;
-        if (opts.transport === "extension") {
-          result = await createSeededSessionViaExtension({
-            ...common,
-            background: opts.background,
-            bridgePort: opts.bridgePort,
-            ...(seedToken !== undefined ? { token: seedToken } : {}),
-          });
-        } else if (opts.transport === "applescript") {
+        if (opts.transport === "applescript") {
           result = await createSeededSessionViaApplescript(common);
         } else {
           result = await createSeededSession({ ...common, port: opts.port });

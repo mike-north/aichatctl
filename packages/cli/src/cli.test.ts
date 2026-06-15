@@ -64,7 +64,28 @@ describe("run", () => {
 
   it("rejects an unknown platform as a usage error", async () => {
     const { io } = captureIO();
-    const code = await run(argv("project", "list", "--platform", "gemini"), io);
+    const code = await run(argv("project", "list", "--platform", "bard"), io);
     expect(code).not.toBe(0);
+  });
+
+  it("rejects Gemini on a non-AppleScript transport before connecting", async () => {
+    const { io, err } = captureIO();
+    const code = await run(
+      argv(
+        "session",
+        "create",
+        "--platform",
+        "gemini",
+        "--project",
+        "new",
+        "--seed",
+        "hi",
+        "--transport",
+        "cdp",
+      ),
+      io,
+    );
+    expect(code).toBe(1);
+    expect(err.join("\n")).toMatch(/AppleScript transport/);
   });
 });

@@ -92,4 +92,20 @@ platforms:
     const m = parseManifest(VALID.replace(/ {2}chatgpt:[\s\S]*$/, ""), "/base");
     expect(() => manifestForPlatform(m, "chatgpt")).toThrow(ConfigError);
   });
+
+  it("throws ConfigError for Gemini (no file library to sync)", () => {
+    const m = parseManifest(VALID, "/base");
+    expect(() => manifestForPlatform(m, "gemini")).toThrow(ConfigError);
+  });
+
+  it("rejects a gemini key in the manifest (not a syncable platform)", () => {
+    const yaml = `
+platforms:
+  gemini:
+    project: "New chat"
+    files:
+      - a.md
+`;
+    expect(() => parseManifest(yaml, "/base")).toThrow(ConfigError);
+  });
 });

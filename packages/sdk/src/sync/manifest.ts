@@ -5,7 +5,6 @@ import { load as parseYaml } from "js-yaml";
 import { z } from "zod";
 
 import { ConfigError } from "../errors.js";
-import { PLATFORMS } from "../types.js";
 import type { Platform } from "../types.js";
 
 /** Per-platform manifest: target project + which local files/instructions to mirror. */
@@ -26,7 +25,7 @@ const manifestSchema = z
         chatgpt: platformManifestSchema.optional(),
       })
       .strict()
-      .refine((p) => PLATFORMS.some((name) => p[name] !== undefined), {
+      .refine((p) => p.claude !== undefined || p.chatgpt !== undefined, {
         message: "at least one platform must be configured",
       }),
   })
@@ -77,6 +76,10 @@ export function manifestForPlatform(
   manifest: LoadedManifest,
   platform: Platform,
 ): PlatformManifest {
+  if (platform === "gemini") {
+    // Gemini has no file library / instructions, so it is never in a manifest.
+    throw new ConfigError(`Platform "gemini" has no file library to sync.`);
+  }
   const entry = manifest.platforms[platform];
   if (!entry) {
     throw new ConfigError(`Manifest has no configuration for platform "${platform}".`);

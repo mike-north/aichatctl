@@ -1,3 +1,4 @@
+import { UnsupportedOperationError } from "../errors.js";
 import type { BrowserSession } from "../browser/session.js";
 import type { Platform } from "../types.js";
 import { ChatgptDriver } from "./chatgpt/driver.js";
@@ -11,5 +12,9 @@ export function createDriver(platform: Platform, session: BrowserSession): Drive
       return new ClaudeDriver(session);
     case "chatgpt":
       return new ChatgptDriver(session);
+    case "gemini":
+      // Gemini is seed-sessions only and reachable only via AppleScript; there
+      // is no CDP/extension driver for it.
+      throw new UnsupportedOperationError("gemini", "CDP/extension driver");
   }
 }

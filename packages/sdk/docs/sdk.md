@@ -32,6 +32,30 @@ Base class for all errors thrown by the SDK.
 </td></tr>
 <tr><td>
 
+[AppleScriptDriver](./sdk.applescriptdriver.md)
+
+
+</td><td>
+
+A [Driver](./sdk.driver.md) that drives the user's real, logged-in Chrome with no extension — via AppleScript (`osascript`<!-- -->) executing JS in the tab. The extension-free path for locked-down environments where apps can be installed but Chrome extensions cannot.
+
+Requires Chrome's "Allow JavaScript from Apple Events" (View → Developer). Network calls in page JS use synchronous XHR (AppleScript doesn't await promises). Operations needing trusted mouse events or the native file picker (uploads) are handled in a later phase.
+
+
+</td></tr>
+<tr><td>
+
+[AppleScriptError](./sdk.applescripterror.md)
+
+
+</td><td>
+
+Thrown when osascript / Chrome automation fails.
+
+
+</td></tr>
+<tr><td>
+
 [BrowserNotReachableError](./sdk.browsernotreachableerror.md)
 
 
@@ -95,6 +119,17 @@ Thrown when a referenced project cannot be found in the UI.
 </td><td>
 
 Thrown when a centralized selector fails to resolve, indicating UI drift.
+
+
+</td></tr>
+<tr><td>
+
+[UnsupportedOperationError](./sdk.unsupportedoperationerror.md)
+
+
+</td><td>
+
+Thrown when an operation isn't supported for a platform/transport — e.g. Gemini has no project file library or instructions to sync, and is reachable only via the AppleScript transport.
 
 
 </td></tr>
@@ -176,6 +211,17 @@ Creates a seeded chat session in a project on the given platform.
 </td></tr>
 <tr><td>
 
+[createSeededSessionViaApplescript(options)](./sdk.createseededsessionviaapplescript.md)
+
+
+</td><td>
+
+Creates a seeded session by driving the user's real Chrome with no extension, via AppleScript (`osascript`<!-- -->). For locked-down environments where apps are installable but Chrome extensions are not. Requires Chrome's "Allow JavaScript from Apple Events".
+
+
+</td></tr>
+<tr><td>
+
 [defaultStatePath(baseDir)](./sdk.defaultstatepath.md)
 
 
@@ -193,6 +239,28 @@ Default location of the sync-state file within a project base directory.
 </td><td>
 
 Runs end-to-end health checks: CDP reachability plus a per-platform selftest (login state + smoke selectors). Never throws for an unreachable browser — the unreachable state is reported in the result.
+
+
+</td></tr>
+<tr><td>
+
+[doctorApplescript(platforms)](./sdk.doctorapplescript.md)
+
+
+</td><td>
+
+Preflight for the AppleScript transport: verifies Chrome's JS-from-Apple-Events toggle and the logged-in state per platform. Never throws — failures are reported in the result so an agent can guide the user.
+
+
+</td></tr>
+<tr><td>
+
+[evalInChromeTab(jsCode, options)](./sdk.evalinchrometab.md)
+
+
+</td><td>
+
+Executes `jsCode` in the matching Chrome tab and returns its string result.
 
 
 </td></tr>
@@ -356,6 +424,17 @@ Expands manifest globs (relative to `baseDir`<!-- -->) into a deduplicated, hash
 </td></tr>
 <tr><td>
 
+[runAppleScript(script, timeoutMs)](./sdk.runapplescript.md)
+
+
+</td><td>
+
+Runs a raw AppleScript (e.g. System Events keystrokes) and returns stdout.
+
+
+</td></tr>
+<tr><td>
+
 [runSync(options)](./sdk.runsync.md)
 
 
@@ -405,6 +484,28 @@ Description
 
 </th></tr></thead>
 <tbody><tr><td>
+
+[ApplescriptDoctorReport](./sdk.applescriptdoctorreport.md)
+
+
+</td><td>
+
+Readiness report for `doctor --transport applescript`<!-- -->.
+
+
+</td></tr>
+<tr><td>
+
+[ApplescriptPlatformStatus](./sdk.applescriptplatformstatus.md)
+
+
+</td><td>
+
+Per-platform readiness for the AppleScript transport.
+
+
+</td></tr>
+<tr><td>
 
 [ConnectionOptions](./sdk.connectionoptions.md)
 
@@ -639,6 +740,17 @@ Options for [createSeededSession()](./sdk.createseededsession.md)<!-- -->.
 </td></tr>
 <tr><td>
 
+[SeedViaApplescriptOptions](./sdk.seedviaapplescriptoptions.md)
+
+
+</td><td>
+
+Options for [createSeededSessionViaApplescript()](./sdk.createseededsessionviaapplescript.md)<!-- -->.
+
+
+</td></tr>
+<tr><td>
+
 [SelectorProbe](./sdk.selectorprobe.md)
 
 
@@ -740,6 +852,17 @@ The set of all supported platforms, for iteration/validation.
 
 
 </td></tr>
+<tr><td>
+
+[SYNC\_PLATFORMS](./sdk.sync_platforms.md)
+
+
+</td><td>
+
+Platforms that support project file/instructions sync (excludes Gemini).
+
+
+</td></tr>
 </tbody></table>
 
 ## Type Aliases
@@ -763,6 +886,8 @@ Description
 </td><td>
 
 A supported web AI chat platform.
+
+`claude` and `chatgpt` support the full feature set (project file sync, instructions, seeded sessions). `gemini` is \*\*seed-sessions only\*\* — it has no project file library or project instructions to sync — and is reachable only via the AppleScript transport.
 
 
 </td></tr>

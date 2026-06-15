@@ -4,11 +4,21 @@
  * @packageDocumentation
  */
 
-/** A supported web AI chat platform. */
-export type Platform = "claude" | "chatgpt";
+/**
+ * A supported web AI chat platform.
+ *
+ * `claude` and `chatgpt` support the full feature set (project file sync,
+ * instructions, seeded sessions). `gemini` is **seed-sessions only** — it has no
+ * project file library or project instructions to sync — and is reachable only
+ * via the AppleScript transport.
+ */
+export type Platform = "claude" | "chatgpt" | "gemini";
 
 /** The set of all supported platforms, for iteration/validation. */
-export const PLATFORMS: readonly Platform[] = ["claude", "chatgpt"];
+export const PLATFORMS: readonly Platform[] = ["claude", "chatgpt", "gemini"];
+
+/** Platforms that support project file/instructions sync (excludes Gemini). */
+export const SYNC_PLATFORMS: readonly Platform[] = ["claude", "chatgpt"];
 
 /** A project (a.k.a. "Project" on Claude.ai / ChatGPT) as seen in the web UI. */
 export interface Project {
