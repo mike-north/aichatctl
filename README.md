@@ -1,165 +1,227 @@
 # aichatctl
 
-Drive the **Claude.ai** and **ChatGPT** web interfaces from agents — to keep a
-project's file library in sync with a git source of truth, and to create seeded
-chat sessions you can continue by voice on mobile. **Google Gemini** is also
-supported for seeded sessions (it has no project file library to sync).
+**Drive your logged-in Claude.ai, ChatGPT, Gemini, and NotebookLM from the command line — deterministically, no API keys, no model in the loop.**
 
-These platforms expose no public API for project files, instructions, or
-project-scoped chat creation. `aichatctl` does it deterministically against your
-**real, logged-in Chrome** — fixed code, no model in the loop, no tokens spent on
-the browser. Agents handle the reasoning (what to sync, what prompt to seed); the
-tool handles every click.
-
-| Capability | Claude.ai | ChatGPT | Gemini |
-| --- | :-: | :-: | :-: |
-| Discover projects (by name / URL) | ✅ | ✅ | n/a² |
-| Seed a session | ✅ | ✅ | ✅ |
-| File library: upload / list / delete | ✅ | ✅ | n/a² |
-| Sync (idempotent upload → no-op) | ✅ | ✅ | n/a² |
-| Project instructions sync | ✅ | ✅¹ | n/a² |
-
-¹ ChatGPT instructions are the one operation with no drivable UI save, so they
-use ChatGPT's own internal endpoint, authenticated through your live session (see
-[How it works](#how-it-works)). Everything else is UI-driven.
-
-² Gemini has no project file library or instructions, so it is **seed-sessions
-only**.
-
-## Why
-
-- **Project files rot.** You upload a spec to a Claude/ChatGPT project, the spec
-  changes in the repo, and the uploaded copy silently goes stale. `aichatctl sync`
-  mirrors a declared subset of repo files (and the instructions) into the project
-  on demand.
-- **Voice-ready handoff.** A local agent composes a prompt, `aichatctl` creates a
-  new chat in the right project and starts it; you open the mobile app and talk.
-
-## Layout
-
-| Piece | What it is |
-| --- | --- |
-| `@aichatctl/sdk` | The engine: platform drivers, transports, sync engine |
-| `aichatctl` (CLI) | Thin command-line over the SDK; `--json` everywhere |
-| `@aichatctl/mcp` | MCP server exposing the operations as agent tools |
-| `plugins/aichatctl` | Agent plugin (skill + `/aichat-sync`, `/aichat-seed-session`) |
-
-## Setup
+These products have no public API for the things that matter day to day: the files
+and instructions attached to a *project*, creating a project-scoped chat, or turning
+your sources into a NotebookLM audio overview. So those things rot or stay manual.
+`aichatctl` automates them by driving your **real, signed-in Chrome** with fixed
+code — every click is scripted, nothing is screenshotted or "reasoned about," and
+no tokens are spent. An agent decides *what* to do (which files to sync, what prompt
+to seed); `aichatctl` does the *doing*.
 
 ```bash
-pnpm install
-pnpm build
+# Compose a NotebookLM podcast from a spec + a design doc, started and ready to listen
+aichatctl notebook create \
+  --source docs/specs --source-url https://docs.google.com/document/d/<id> \
+  --format deep-dive --prompt "Explain the migration plan to a new engineer" --json
 ```
 
-Copy `aichatctl.config.example.yaml` to `aichatctl.config.yaml` and declare your
-projects, file globs, and (optionally) an instructions markdown file.
+## What it does
 
-### Transports
+Two jobs, across the platforms that support them:
 
-`aichatctl` drives your **real, logged-in Chrome** through one of two transports:
+| Capability | Claude.ai | ChatGPT | Gemini | NotebookLM |
+| --- | :-: | :-: | :-: | :-: |
+| Discover projects (by name / URL) | ✅ | ✅ | — | — |
+| **Seed a chat session** (start a chat, hand off to mobile/voice) | ✅ | ✅ | ✅ | — |
+| **Sync a file library** (upload / list / delete) | ✅ | ✅ | — | — |
+| Sync project instructions | ✅ | ✅¹ | — | — |
+| **Create a notebook → audio podcast** | — | — | — | ✅ |
 
-- **AppleScript (primary, macOS).** `--transport applescript` drives Chrome with
-  no extension — `osascript` executes JS in the tab. It needs **one toggle**:
-  Chrome → View → Developer → **Allow JavaScript from Apple Events**. Preflight
-  with `aichatctl doctor --transport applescript`.
-- **CDP (fallback, default).** `--transport cdp` drives a Playwright connection to
-  a dedicated automation Chrome profile (`aichatctl browser launch`, then sign in
-  once) — for non-macOS or headless/unattended use. Recent Chrome refuses
-  `--remote-debugging-port` on the *default* profile, hence the dedicated one.
+¹ ChatGPT's instructions field has no save button reachable by automation, so it's
+the one place `aichatctl` calls ChatGPT's own endpoint (via your live session). See
+[How it works](#how-it-works). Everything else is UI-driven.
+
+**Why this exists**
+
+- **Project files rot.** You attach a spec to a Claude/ChatGPT project; the spec
+  changes in git; the uploaded copy silently goes stale. `aichatctl sync` mirrors a
+  declared set of repo files (and the instructions) into the project on demand.
+- **Voice-ready handoff.** A local agent composes a prompt; `aichatctl` opens a new
+  chat in the right project and starts it. You open the mobile app and keep talking.
+- **Podcasts from your sources.** Turn repo files and links into a NotebookLM audio
+  overview you listen to on a walk.
+
+## Requirements
+
+- **macOS** for the primary (extension-free) transport — it uses `osascript`. The
+  CDP fallback works elsewhere and headless (see [Transports](#how-it-works)).
+- **Node ≥ 20** and **pnpm**.
+- **Google Chrome**, signed in to the services you target (it uses your real session).
+- One Chrome toggle for the AppleScript transport: **View → Developer → Allow
+  JavaScript from Apple Events**.
+
+## Quickstart
 
 ```bash
-# AppleScript: enable the toggle, then preflight (checks toggle + per-platform login)
-aichatctl doctor --transport applescript
-
-# CDP: launch the dedicated profile and sign in once
-aichatctl browser launch
-aichatctl doctor
+git clone <this-repo> aichatctl && cd aichatctl
+pnpm install && pnpm build
 ```
+
+The CLI binary is `packages/cli/dist/bin.js`. The examples below call it as
+`aichatctl` — put it on your PATH with an alias (`alias aichatctl="node $PWD/packages/cli/dist/bin.js"`)
+or `npm link` it from `packages/cli`.
+
+Enable the Chrome toggle above, then check you're ready:
+
+```bash
+aichatctl doctor --transport applescript     # verifies the toggle + per-platform login
+```
+
+Make your first podcast (or seed your first session):
+
+```bash
+# NotebookLM audio overview from a file + a URL
+aichatctl notebook create --source README.md --source-url https://example.com \
+  --format brief --prompt "Two-minute overview for a newcomer" --json
+
+# Or: start a Claude chat seeded with a prompt, to continue by voice on mobile
+aichatctl session create --platform claude --project "My Project" \
+  --transport applescript --seed-file notes.md --json
+```
+
+Each command prints JSON including the conversation/notebook `url` — open it on your
+phone and go.
 
 ## Usage
 
-```bash
-# Sync repo files + instructions into project libraries (preview, then apply)
-aichatctl sync --transport applescript --dry-run
-aichatctl sync --transport applescript
-aichatctl sync --transport applescript --platform chatgpt   # limit to one platform
+### Seed a chat session
 
-# Seed a session and get its URL (--project takes a name, URL, or id)
+Starts a new chat in a project, pre-filled and submitted, so you can continue it
+from the mobile app (e.g. by voice).
+
+```bash
 aichatctl session create --transport applescript \
   --platform claude --project "My Project" --seed-file notes.md --json
 
-# Seed a Gemini chat (seed-only): --project is a Gem URL/id, or "new" for a plain chat
+# Gemini is seed-only; --project is a Gem URL/id, or "new" for a plain chat
 aichatctl session create --transport applescript \
-  --platform gemini --project new --seed-file notes.md --json
+  --platform gemini --project new --seed "Let's plan the week" --json
 ```
 
-The JSON result of `session create` includes the conversation `url` — open it in
-the mobile app and continue (e.g. tap voice). `--no-send` stages the prompt
-without submitting. Sync only ever deletes files **it** previously synced; files
-you added manually in the web UI are left untouched.
+`--project` takes a name, URL, or id. `--no-send` stages the prompt without
+submitting. `--seed-file -` reads the prompt from stdin.
 
-## NotebookLM podcasts
+### Sync a project's file library
 
-Create a NotebookLM notebook from local files and/or URLs and kick off a
-customized Audio Overview ("podcast") — then open the notebook on mobile to
-listen once it finishes rendering. AppleScript transport only (NotebookLM is a
-Google product; macOS).
+Mirror a declared set of repo files (and, optionally, the instructions) into a
+Claude/ChatGPT project so it tracks your git source of truth. Always preview first.
+
+```bash
+aichatctl sync --transport applescript --dry-run     # show the upload/replace/delete plan
+aichatctl sync --transport applescript               # apply it
+aichatctl sync --transport applescript --platform chatgpt   # one platform only
+```
+
+Sync only ever deletes files **it** previously synced — anything you added by hand
+in the web UI is left alone.
+
+Configure it with `aichatctl.config.yaml` at your repo root (copy
+`aichatctl.config.example.yaml`):
+
+```yaml
+platforms:
+  claude:
+    project: "Product Spec Workspace"        # name, or a project URL/id
+    instructions: docs/project-instructions.md   # optional
+    files:
+      - docs/specs/**/*.md
+      - README.md
+  chatgpt:
+    project: "https://chatgpt.com/g/g-p-XXXXXXXX/project"
+    files:
+      - docs/specs/**/*.md
+```
+
+### Create a NotebookLM podcast
+
+Create a notebook from files and/or links and kick off a customized audio overview.
 
 ```bash
 aichatctl notebook create \
-  --source docs/specs --source README.md \
-  --source-url https://docs.google.com/document/d/<id> \
+  --source docs/specs --source README.md \        # files/dirs → text sources
+  --source-url https://docs.google.com/document/d/<id> \   # each URL → its own source
   --format deep-dive --length default \
-  --prompt "Focus on the migration plan for someone new to the codebase" --json
+  --prompt "Focus on the migration plan for a newcomer" --json
 ```
 
-Each `--source` file (directories expand to their files) becomes a pasted text
-source; each `--source-url` becomes its **own** website source (so a Google Doc
-URL lands as that document). Formats: `deep-dive` (default), `brief`, `critique`,
-`debate`. Lengths: `short`, `default`, `long`. The command returns the notebook
-`url` once generation is kicked off — it does not wait for the audio to render.
+- **Format:** `deep-dive` (default), `brief`, `critique`, `debate`.
+- **Length:** `short`, `default`, `long` (NotebookLM applies length only to some
+  formats; it's ignored where the UI omits it).
+- Each `--source` file (directories expand to their files) becomes a text source;
+  each `--source-url` becomes its **own** source (so a Google Doc link lands as that
+  document). `--source-text -` reads a source from stdin.
+
+The command returns once generation is **kicked off** — the audio renders in the
+background (minutes). Open the returned `url` on mobile to listen.
 
 ## How it works
 
-- **UI-driven, deterministically.** The per-platform drivers run fixed code
-  against the logged-in web UIs — navigation, uploads, clicks, typing, send. No
-  model is in the loop and no tokens are spent driving the browser.
-- **AppleScript transport.** `osascript` runs JS in the tab via Chrome's
-  `execute javascript`. That call doesn't await promises, so page JS uses
-  synchronous `XMLHttpRequest` for any network call. File operations use each
-  platform's own endpoints (Claude docs API; ChatGPT register → blob PUT →
-  process → associate) rather than the native file picker, which would need
-  Accessibility permission. macOS-only.
-- **CDP transport.** Playwright against the dedicated automation profile. Its
-  per-platform selectors live in `packages/sdk/src/drivers/<platform>/selectors.ts`
-  and are best-effort — calibrate with `aichatctl doctor` before relying on it.
-- **Internal API, only where the UI fails.** Driving the UI is preferred (no
-  brittle API coupling). ChatGPT project *instructions* are the lone exception:
-  the field fires no save under automation, so the driver calls ChatGPT's own
-  `PATCH /backend-api/projects/{id}` from the page context — it carries your live
-  session (cookies + bearer from `/api/auth/session`); no credentials are stored.
+`aichatctl` drives your **real, logged-in Chrome** through one of two transports:
 
-### Per-transport capabilities
+- **AppleScript (primary, macOS).** `osascript` runs scripted JS in your tab — no
+  extension, no separate browser profile. It needs the one Chrome toggle above.
+  Because that call can't await promises, page code uses synchronous requests; file
+  operations use each product's own upload endpoints rather than the native file
+  picker (which would need Accessibility permission).
+- **CDP (fallback, default).** A Playwright connection to a dedicated automation
+  Chrome profile (`aichatctl browser launch`, then sign in once) — for non-macOS or
+  headless/unattended runs. Recent Chrome blocks remote debugging on the *default*
+  profile, which is why the fallback uses a dedicated one.
 
-| Operation | Claude | ChatGPT | Gemini |
-| --- | :-: | :-: | :-: |
-| Seed session, resolve project, login check | ✅ | ✅ | ✅ (AppleScript only) |
-| File library: upload / read / delete | ✅ (docs API) | ✅ (files API) | n/a |
-| Instructions sync | ✅ (UI flow) | ✅ (internal API) | n/a |
+Two principles keep it robust and trustworthy:
+
+- **UI-driven, deterministically.** Drivers run fixed code against the logged-in UIs
+  — navigate, upload, click, type, send. No model is in the loop; no tokens are
+  spent on the browser.
+- **Internal APIs only where the UI genuinely can't be driven.** Coupling to private
+  endpoints is brittle, so it's avoided. The lone exception is ChatGPT project
+  *instructions* (no save fires under automation): `aichatctl` calls ChatGPT's own
+  `PATCH /backend-api/projects/{id}` from the page, carrying your live session — no
+  credentials are read or stored.
+
+When a web UI drifts and a control stops resolving, commands fail with a clear
+`(calibration)` error naming what wasn't found, so the fix is a one-line selector
+change rather than a guess.
 
 ## Agent plugin
+
+`aichatctl` ships an agent plugin so a coding agent can use it directly:
 
 ```
 /plugin marketplace add /path/to/aichatctl
 /plugin install aichatctl@aichatctl-marketplace
 ```
 
-Then use `/aichat-sync` and `/aichat-seed-session`, or just ask — the `aichatctl`
-skill activates automatically. Cross-platform plugin builds (Codex, etc.) are
-produced with [`aipm`](https://github.com/ai-plugin-marketplace/tools).
+It provides the `aichatctl` skill (activates automatically) plus `/aichat-sync`,
+`/aichat-seed-session`, and `/aichat-podcast`. The agent reasons about *what* to do
+and calls the CLI; it never drives the browser itself. Cross-platform builds (Codex,
+etc.) are produced with [`aipm`](https://github.com/ai-plugin-marketplace/tools).
 
-## Notes
+## Security & scope
 
-`aichatctl` operates *your own* authenticated personal accounts for personal
-productivity, at human pace. It stores no passwords (your Chrome session holds the
-cookies) and never persists auth tokens.
+`aichatctl` operates **your own** authenticated accounts for personal productivity,
+at human pace. It stores no passwords (your Chrome session holds the cookies) and
+never persists auth tokens. Automating a web UI may run against a service's terms —
+this is a documented, deliberate trade-off, not hidden behavior.
+
+## Repo layout
+
+| Package | What it is |
+| --- | --- |
+| `@aichatctl/sdk` | The engine: platform drivers, transports, the sync engine |
+| `aichatctl` (CLI) | Thin command-line over the SDK; `--json` on every command |
+| `@aichatctl/mcp` | MCP server exposing the operations as agent tools |
+| `plugins/aichatctl` | The agent plugin (skill + commands) |
+
+```bash
+pnpm build      # compile all packages
+pnpm test       # run the test suite
+pnpm lint       # eslint
+```
+
+## Status
+
+Early and personal — a productivity tool for the author's own accounts, not a
+published package. APIs and commands may change. No license is granted yet.
