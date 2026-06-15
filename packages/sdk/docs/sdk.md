@@ -91,6 +91,17 @@ Thrown when the on-disk manifest/config is malformed.
 </td></tr>
 <tr><td>
 
+[NotebookLmDriver](./sdk.notebooklmdriver.md)
+
+
+</td><td>
+
+Drives the user's real, logged-in Chrome to create a NotebookLM notebook, add sources, and kick off an Audio Overview — via AppleScript (`osascript`<!-- -->), with no extension. macOS-only; requires Chrome's "Allow JavaScript from Apple Events". NotebookLM is not a chat platform, so this is a standalone driver (it does not implement the chat `Driver` interface).
+
+
+</td></tr>
+<tr><td>
+
 [NotLoggedInError](./sdk.notloggedinerror.md)
 
 
@@ -150,6 +161,17 @@ Description
 </th></tr></thead>
 <tbody><tr><td>
 
+[buildNotebookSources(input)](./sdk.buildnotebooksources.md)
+
+
+</td><td>
+
+Builds the ordered source list: files (glob order) → inline text → URLs (input order). Each file becomes a titled text source (title = basename); inline text an untitled text source; each URL its own url source.
+
+
+</td></tr>
+<tr><td>
+
 [chromeProfileDir()](./sdk.chromeprofiledir.md)
 
 
@@ -195,6 +217,17 @@ Root config directory for aichatctl (honors XDG\_CONFIG\_HOME).
 </td><td>
 
 Constructs the driver for a platform, bound to a browser session.
+
+
+</td></tr>
+<tr><td>
+
+[createNotebookPodcast(options)](./sdk.createnotebookpodcast.md)
+
+
+</td><td>
+
+Creates a NotebookLM notebook, adds the given sources (one insert each — URLs become distinct document sources), and kicks off an Audio Overview. Returns once generation is kicked off; it does not wait for the (minutes-long) render. AppleScript transport only (NotebookLM is a Google product; macOS-only).
 
 
 </td></tr>
@@ -380,6 +413,28 @@ Returns the manifest entry for a platform, or throws if not configured.
 </td></tr>
 <tr><td>
 
+[parseAudioFormat(value)](./sdk.parseaudioformat.md)
+
+
+</td><td>
+
+Parses a CLI format string, throwing a usage-style error on an unknown value.
+
+
+</td></tr>
+<tr><td>
+
+[parseAudioLength(value)](./sdk.parseaudiolength.md)
+
+
+</td><td>
+
+Parses a CLI length string, throwing a usage-style error on an unknown value.
+
+
+</td></tr>
+<tr><td>
+
 [parseManifest(yaml, baseDir)](./sdk.parsemanifest.md)
 
 
@@ -507,6 +562,28 @@ Per-platform readiness for the AppleScript transport.
 </td></tr>
 <tr><td>
 
+[AudioOverviewOptions](./sdk.audiooverviewoptions.md)
+
+
+</td><td>
+
+Options for generating an Audio Overview.
+
+
+</td></tr>
+<tr><td>
+
+[BuildSourcesInput](./sdk.buildsourcesinput.md)
+
+
+</td><td>
+
+Raw inputs for [buildNotebookSources()](./sdk.buildnotebooksources.md)<!-- -->.
+
+
+</td></tr>
+<tr><td>
+
 [ConnectionOptions](./sdk.connectionoptions.md)
 
 
@@ -524,6 +601,17 @@ Common connection options.
 </td><td>
 
 Options for attaching to a running Chrome over CDP.
+
+
+</td></tr>
+<tr><td>
+
+[CreateNotebookPodcastOptions](./sdk.createnotebookpodcastoptions.md)
+
+
+</td><td>
+
+Options for [createNotebookPodcast()](./sdk.createnotebookpodcast.md)<!-- -->.
 
 
 </td></tr>
@@ -645,6 +733,28 @@ A validated manifest plus the directory it was loaded from.
 </td><td>
 
 A named, self-describing locator used by a driver and by selftest.
+
+
+</td></tr>
+<tr><td>
+
+[Notebook](./sdk.notebook.md)
+
+
+</td><td>
+
+A NotebookLM notebook resolved from the URL after creation.
+
+
+</td></tr>
+<tr><td>
+
+[NotebookPodcastResult](./sdk.notebookpodcastresult.md)
+
+
+</td><td>
+
+Result of [createNotebookPodcast()](./sdk.createnotebookpodcast.md)<!-- -->.
 
 
 </td></tr>
@@ -832,6 +942,28 @@ Description
 </th></tr></thead>
 <tbody><tr><td>
 
+[AUDIO\_FORMAT\_LABEL](./sdk.audio_format_label.md)
+
+
+</td><td>
+
+Format value → the clickable Format card label in the NotebookLM UI.
+
+
+</td></tr>
+<tr><td>
+
+[AUDIO\_LENGTH\_LABEL](./sdk.audio_length_label.md)
+
+
+</td><td>
+
+Length value → the Length control label in the NotebookLM UI.
+
+
+</td></tr>
+<tr><td>
+
 [DEFAULT\_CDP\_PORT](./sdk.default_cdp_port.md)
 
 
@@ -879,6 +1011,41 @@ Description
 
 </th></tr></thead>
 <tbody><tr><td>
+
+[AudioOverviewFormat](./sdk.audiooverviewformat.md)
+
+
+</td><td>
+
+Audio Overview format ("podcast type") — the Format cards in the dialog.
+
+
+</td></tr>
+<tr><td>
+
+[AudioOverviewLength](./sdk.audiooverviewlength.md)
+
+
+</td><td>
+
+Audio Overview length control.
+
+
+</td></tr>
+<tr><td>
+
+[NotebookSource](./sdk.notebooksource.md)
+
+
+</td><td>
+
+A source to add to a notebook.
+
+Future source kinds (e.g. `"drive" | "youtube" | "upload"`<!-- -->) will extend this union.
+
+
+</td></tr>
+<tr><td>
 
 [Platform](./sdk.platform.md)
 

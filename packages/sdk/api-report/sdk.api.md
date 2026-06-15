@@ -67,6 +67,27 @@ export interface ApplescriptPlatformStatus {
 }
 
 // @public
+export const AUDIO_FORMAT_LABEL: Readonly<Record<AudioOverviewFormat, string>>;
+
+// @public
+export const AUDIO_LENGTH_LABEL: Readonly<Record<AudioOverviewLength, string>>;
+
+// @public
+export type AudioOverviewFormat = "deep-dive" | "brief" | "critique" | "debate";
+
+// @public
+export type AudioOverviewLength = "short" | "default" | "long";
+
+// @public
+export interface AudioOverviewOptions {
+    // (undocumented)
+    readonly format: AudioOverviewFormat;
+    // (undocumented)
+    readonly length: AudioOverviewLength;
+    readonly prompt?: string;
+}
+
+// @public
 export class BrowserNotReachableError extends AichatctlError {
     constructor(endpoint: string, options?: {
         cause?: unknown;
@@ -83,6 +104,16 @@ export class BrowserSession {
     static connect(options?: ConnectOptions): Promise<BrowserSession>;
     context(): BrowserContext;
     newPage(url?: string): Promise<Page>;
+}
+
+// @public
+export function buildNotebookSources(input: BuildSourcesInput): NotebookSource[];
+
+// @public
+export interface BuildSourcesInput {
+    readonly files?: readonly string[];
+    readonly text?: string;
+    readonly urls?: readonly string[];
 }
 
 // @public
@@ -114,6 +145,17 @@ export interface ConnectOptions {
 
 // @public
 export function createDriver(platform: Platform, session: BrowserSession): Driver;
+
+// @public
+export function createNotebookPodcast(options: CreateNotebookPodcastOptions): Promise<NotebookPodcastResult>;
+
+// @public
+export interface CreateNotebookPodcastOptions {
+    readonly audio: AudioOverviewOptions;
+    readonly skipLoginCheck?: boolean;
+    readonly sources: readonly NotebookSource[];
+    readonly title?: string;
+}
 
 // @public
 export function createSeededSession(options: SeedSessionOptions): Promise<SeedResult>;
@@ -262,6 +304,46 @@ export interface NamedSelector {
 }
 
 // @public
+export interface Notebook {
+    // (undocumented)
+    readonly id: string;
+    // (undocumented)
+    readonly url: string;
+}
+
+// @public
+export class NotebookLmDriver {
+    addTextSource(nb: Notebook, content: string): Promise<void>;
+    addUrlSource(nb: Notebook, url: string): Promise<void>;
+    createNotebook(): Promise<Notebook>;
+    generateAudioOverview(nb: Notebook, opts: AudioOverviewOptions): Promise<void>;
+    // (undocumented)
+    isLoggedIn(): Promise<boolean>;
+}
+
+// @public
+export interface NotebookPodcastResult {
+    // (undocumented)
+    readonly notebookId: string;
+    // (undocumented)
+    readonly podcastKicked: boolean;
+    // (undocumented)
+    readonly sourcesAdded: number;
+    // (undocumented)
+    readonly url: string;
+}
+
+// @public
+export type NotebookSource = {
+    readonly kind: "text";
+    readonly title?: string;
+    readonly content: string;
+} | {
+    readonly kind: "url";
+    readonly url: string;
+};
+
+// @public
 export class NotLoggedInError extends AichatctlError {
     constructor(platform: string);
     // (undocumented)
@@ -269,6 +351,12 @@ export class NotLoggedInError extends AichatctlError {
     // (undocumented)
     readonly platform: string;
 }
+
+// @public
+export function parseAudioFormat(value: string): AudioOverviewFormat;
+
+// @public
+export function parseAudioLength(value: string): AudioOverviewLength;
 
 // @public
 export function parseManifest(yaml: string, baseDir: string): LoadedManifest;

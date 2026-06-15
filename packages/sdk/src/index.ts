@@ -25,6 +25,22 @@ export type {
 } from "./drivers/driver.js";
 export { createDriver } from "./drivers/factory.js";
 export { AppleScriptDriver } from "./drivers/applescript/driver.js";
+export { NotebookLmDriver } from "./drivers/notebooklm/driver.js";
+export type { Notebook } from "./drivers/notebooklm/driver.js";
+export {
+  AUDIO_FORMAT_LABEL,
+  AUDIO_LENGTH_LABEL,
+  parseAudioFormat,
+  parseAudioLength,
+} from "./drivers/notebooklm/types.js";
+export type {
+  AudioOverviewFormat,
+  AudioOverviewLength,
+  AudioOverviewOptions,
+  NotebookSource,
+} from "./drivers/notebooklm/types.js";
+export { buildNotebookSources } from "./drivers/notebooklm/sources.js";
+export type { BuildSourcesInput } from "./drivers/notebooklm/sources.js";
 export { evalInChromeTab, runAppleScript, AppleScriptError } from "./applescript/runner.js";
 
 export * from "./sync/manifest.js";
