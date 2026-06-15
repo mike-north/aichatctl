@@ -154,7 +154,6 @@ export interface CreateNotebookPodcastOptions {
     readonly audio: AudioOverviewOptions;
     readonly skipLoginCheck?: boolean;
     readonly sources: readonly NotebookSource[];
-    readonly title?: string;
 }
 
 // @public

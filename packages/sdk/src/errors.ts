@@ -28,10 +28,7 @@ export class BrowserNotReachableError extends AichatctlError {
 export class NotLoggedInError extends AichatctlError {
   public override readonly name = "NotLoggedInError";
   public constructor(public readonly platform: string) {
-    super(
-      `Not logged in to ${platform}. Open the platform in the automation browser and sign in, ` +
-        `then re-run.`,
-    );
+    super(`Not logged in to ${platform}. Sign in to ${platform} in Chrome, then re-run.`);
   }
 }
 

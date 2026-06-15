@@ -203,8 +203,6 @@ export async function runSync(options: RunSyncOptions): Promise<SyncReport[]> {
 
 /** Options for {@link createNotebookPodcast}. */
 export interface CreateNotebookPodcastOptions {
-  /** Optional notebook title (NotebookLM auto-titles from content if omitted). */
-  readonly title?: string;
   /** Ordered, normalized source list (build with `buildNotebookSources`). */
   readonly sources: readonly NotebookSource[];
   /** Audio Overview format/length/prompt. */
@@ -231,7 +229,7 @@ export async function createNotebookPodcast(
   options: CreateNotebookPodcastOptions,
 ): Promise<NotebookPodcastResult> {
   if (options.sources.length === 0) {
-    throw new AichatctlError("Provide at least one source (--source, --source-url, or --source-text).");
+    throw new AichatctlError("Provide at least one source: --source, --source-url, or --source-text.");
   }
   const driver = new NotebookLmDriver();
   if (options.skipLoginCheck !== true && !(await driver.isLoggedIn())) {
@@ -239,12 +237,20 @@ export async function createNotebookPodcast(
   }
   const notebook = await driver.createNotebook();
   let sourcesAdded = 0;
-  for (const source of options.sources) {
-    if (source.kind === "text") {
-      const body = source.title !== undefined ? `# ${source.title}\n\n${source.content}` : source.content;
-      await driver.addTextSource(notebook, body);
-    } else {
-      await driver.addUrlSource(notebook, source.url);
+  for (const [index, source] of options.sources.entries()) {
+    const label = source.kind === "url" ? source.url : (source.title ?? "inline text");
+    try {
+      if (source.kind === "text") {
+        const body = source.title !== undefined ? `# ${source.title}\n\n${source.content}` : source.content;
+        await driver.addTextSource(notebook, body);
+      } else {
+        await driver.addUrlSource(notebook, source.url);
+      }
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      throw new AichatctlError(
+        `Failed to add source ${String(index + 1)}/${String(options.sources.length)} (${label}): ${detail}`,
+      );
     }
     sourcesAdded += 1;
   }

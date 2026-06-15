@@ -98,26 +98,5 @@ Ordered, normalized source list (build with `buildNotebookSources`<!-- -->).
 
 
 </td></tr>
-<tr><td>
-
-[title?](./sdk.createnotebookpodcastoptions.title.md)
-
-
-</td><td>
-
-`readonly`
-
-
-</td><td>
-
-string
-
-
-</td><td>
-
-_(Optional)_ Optional notebook title (NotebookLM auto-titles from content if omitted).
-
-
-</td></tr>
 </tbody></table>
 

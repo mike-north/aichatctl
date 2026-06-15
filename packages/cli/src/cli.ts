@@ -256,7 +256,6 @@ export function buildProgram(io: IO = defaultIO): Command {
     .option("--source <path>", "file or directory to add as a source (repeatable)", collect, [])
     .option("--source-url <url>", "URL to add as its own source (repeatable)", collect, [])
     .option("--source-text <text>", 'inline text source ("-" reads stdin)')
-    .option("--title <name>", "optional notebook title")
     .option("--format <format>", "deep-dive | brief | critique | debate", "deep-dive")
     .option("--length <length>", "short | default | long", "default")
     .option("--prompt <text>", "what the AI hosts should focus on")
@@ -270,7 +269,6 @@ export function buildProgram(io: IO = defaultIO): Command {
         source: string[];
         sourceUrl: string[];
         sourceText?: string;
-        title?: string;
         format: string;
         length: string;
         prompt?: string;
@@ -307,7 +305,6 @@ export function buildProgram(io: IO = defaultIO): Command {
         const result = await createNotebookPodcast({
           sources,
           audio: { format, length, ...(prompt !== undefined ? { prompt } : {}) },
-          ...(opts.title !== undefined ? { title: opts.title } : {}),
         });
         emit(
           io,
