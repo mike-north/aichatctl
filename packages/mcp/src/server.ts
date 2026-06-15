@@ -78,7 +78,9 @@ export function createServer(): McpServer {
     },
     async ({ transport, port }) => {
       try {
-        return ok(transport === "applescript" ? await doctorApplescript() : await doctor(conn(port)));
+        return ok(
+          transport === "applescript" ? await doctorApplescript() : await doctor(conn(port)),
+        );
       } catch (error) {
         return fail(error);
       }
@@ -162,7 +164,11 @@ export function createServer(): McpServer {
     },
     async ({ files, urls, text, format, length, prompt }) => {
       try {
-        const sources = buildNotebookSources({ files, urls, ...(text !== undefined ? { text } : {}) });
+        const sources = buildNotebookSources({
+          files,
+          urls,
+          ...(text !== undefined ? { text } : {}),
+        });
         if (sources.length === 0) {
           return fail(new Error("Provide at least one source: files, urls, or text."));
         }

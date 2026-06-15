@@ -75,8 +75,6 @@ describe("buildNotebookSources", () => {
   });
 
   it("throws when a --source path matches no files", () => {
-    expect(() => buildNotebookSources({ files: ["/no/such/path-xyz"] })).toThrow(
-      /no files/i,
-    );
+    expect(() => buildNotebookSources({ files: ["/no/such/path-xyz"] })).toThrow(/no files/i);
   });
 });

@@ -123,7 +123,9 @@ export function buildProgram(io: IO = defaultIO): Command {
       }
       const report = await doctor({ port: opts.port });
       const lines: string[] = [];
-      lines.push(`CDP ${report.cdpReachable ? "reachable" : "UNREACHABLE"} on port ${String(report.cdpPort)}`);
+      lines.push(
+        `CDP ${report.cdpReachable ? "reachable" : "UNREACHABLE"} on port ${String(report.cdpPort)}`,
+      );
       if (!report.cdpReachable) {
         lines.push("Run `aichatctl browser launch` first.");
       }
@@ -205,7 +207,12 @@ export function buildProgram(io: IO = defaultIO): Command {
     .option("--seed <text>", "seed prompt text")
     .option("--seed-file <path>", 'read seed prompt from a file ("-" for stdin)')
     .option("--no-send", "stage the prompt without submitting it")
-    .option("--transport <t>", "cdp | applescript (gemini: applescript only)", parseTransport, "cdp")
+    .option(
+      "--transport <t>",
+      "cdp | applescript (gemini: applescript only)",
+      parseTransport,
+      "cdp",
+    )
     .option("--json", "machine-readable output", false)
     .action(
       async (opts: {
@@ -239,17 +246,14 @@ export function buildProgram(io: IO = defaultIO): Command {
         } else {
           result = await createSeededSession({ ...common, port: opts.port });
         }
-        emit(
-          io,
-          opts.json,
-          `${result.sent ? "Started" : "Staged"} session: ${result.url}`,
-          result,
-        );
+        emit(io, opts.json, `${result.sent ? "Started" : "Staged"} session: ${result.url}`, result);
       },
     );
 
   // notebook create ------------------------------------------------------------
-  const notebook = program.command("notebook").description("Create NotebookLM notebooks + podcasts");
+  const notebook = program
+    .command("notebook")
+    .description("Create NotebookLM notebooks + podcasts");
   notebook
     .command("create")
     .description("Create a notebook, add sources, and kick off an Audio Overview (podcast)")
@@ -288,8 +292,7 @@ export function buildProgram(io: IO = defaultIO): Command {
         }
         const format = parseAudioFormat(opts.format);
         const length = parseAudioLength(opts.length);
-        const text =
-          opts.sourceText === "-" ? readPromptSource("-") : opts.sourceText;
+        const text = opts.sourceText === "-" ? readPromptSource("-") : opts.sourceText;
         const sources = buildNotebookSources({
           files: opts.source,
           urls: opts.sourceUrl,

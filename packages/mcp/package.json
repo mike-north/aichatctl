@@ -21,7 +21,9 @@
   "bin": {
     "aichatctl-mcp": "dist/bin.js"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc --build"
   },

@@ -25,7 +25,9 @@
     }
   },
   "types": "./dist/sdk.d.ts",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc --build",
     "api": "api-extractor run --local && api-documenter markdown -i temp -o docs",

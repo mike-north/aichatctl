@@ -3,12 +3,12 @@
 **Drive your logged-in Claude.ai, ChatGPT, Gemini, and NotebookLM from the command line — deterministically, no API keys, no model in the loop.**
 
 These products have no public API for the things that matter day to day: the files
-and instructions attached to a *project*, creating a project-scoped chat, or turning
+and instructions attached to a _project_, creating a project-scoped chat, or turning
 your sources into a NotebookLM audio overview. So those things rot or stay manual.
 `aichatctl` automates them by driving your **real, signed-in Chrome** with fixed
 code — every click is scripted, nothing is screenshotted or "reasoned about," and
-no tokens are spent. An agent decides *what* to do (which files to sync, what prompt
-to seed); `aichatctl` does the *doing*.
+no tokens are spent. An agent decides _what_ to do (which files to sync, what prompt
+to seed); `aichatctl` does the _doing_.
 
 ```bash
 # Compose a NotebookLM podcast from a spec + a design doc, started and ready to listen
@@ -21,13 +21,13 @@ aichatctl notebook create \
 
 Two jobs, across the platforms that support them:
 
-| Capability | Claude.ai | ChatGPT | Gemini | NotebookLM |
-| --- | :-: | :-: | :-: | :-: |
-| Discover projects (by name / URL) | ✅ | ✅ | — | — |
-| **Seed a chat session** (start a chat, hand off to mobile/voice) | ✅ | ✅ | ✅ | — |
-| **Sync a file library** (upload / list / delete) | ✅ | ✅ | — | — |
-| Sync project instructions | ✅ | ✅¹ | — | — |
-| **Create a notebook → audio podcast** | — | — | — | ✅ |
+| Capability                                                       | Claude.ai | ChatGPT | Gemini | NotebookLM |
+| ---------------------------------------------------------------- | :-------: | :-----: | :----: | :--------: |
+| Discover projects (by name / URL)                                |    ✅     |   ✅    |   —    |     —      |
+| **Seed a chat session** (start a chat, hand off to mobile/voice) |    ✅     |   ✅    |   ✅   |     —      |
+| **Sync a file library** (upload / list / delete)                 |    ✅     |   ✅    |   —    |     —      |
+| Sync project instructions                                        |    ✅     |   ✅¹   |   —    |     —      |
+| **Create a notebook → audio podcast**                            |     —     |    —    |   —    |     ✅     |
 
 ¹ ChatGPT's instructions field has no save button reachable by automation, so it's
 the one place `aichatctl` calls ChatGPT's own endpoint (via your live session). See
@@ -120,8 +120,8 @@ Configure it with `aichatctl.config.yaml` at your repo root (copy
 ```yaml
 platforms:
   claude:
-    project: "Product Spec Workspace"        # name, or a project URL/id
-    instructions: docs/project-instructions.md   # optional
+    project: "Product Spec Workspace" # name, or a project URL/id
+    instructions: docs/project-instructions.md # optional
     files:
       - docs/specs/**/*.md
       - README.md
@@ -164,7 +164,7 @@ background (minutes). Open the returned `url` on mobile to listen.
   picker (which would need Accessibility permission).
 - **CDP (fallback, default).** A Playwright connection to a dedicated automation
   Chrome profile (`aichatctl browser launch`, then sign in once) — for non-macOS or
-  headless/unattended runs. Recent Chrome blocks remote debugging on the *default*
+  headless/unattended runs. Recent Chrome blocks remote debugging on the _default_
   profile, which is why the fallback uses a dedicated one.
 
 Two principles keep it robust and trustworthy:
@@ -174,7 +174,7 @@ Two principles keep it robust and trustworthy:
   spent on the browser.
 - **Internal APIs only where the UI genuinely can't be driven.** Coupling to private
   endpoints is brittle, so it's avoided. The lone exception is ChatGPT project
-  *instructions* (no save fires under automation): `aichatctl` calls ChatGPT's own
+  _instructions_ (no save fires under automation): `aichatctl` calls ChatGPT's own
   `PATCH /backend-api/projects/{id}` from the page, carrying your live session — no
   credentials are read or stored.
 
@@ -192,7 +192,7 @@ change rather than a guess.
 ```
 
 It provides the `aichatctl` skill (activates automatically) plus `/aichat-sync`,
-`/aichat-seed-session`, and `/aichat-podcast`. The agent reasons about *what* to do
+`/aichat-seed-session`, and `/aichat-podcast`. The agent reasons about _what_ to do
 and calls the CLI; it never drives the browser itself. Cross-platform builds (Codex,
 etc.) are produced with [`aipm`](https://github.com/ai-plugin-marketplace/tools).
 
@@ -220,12 +220,12 @@ this is a documented, deliberate trade-off, not hidden behavior.
 
 ## Repo layout
 
-| Package | What it is |
-| --- | --- |
-| `@aichatctl/sdk` | The engine: platform drivers, transports, the sync engine |
-| `aichatctl` (CLI) | Thin command-line over the SDK; `--json` on every command |
-| `@aichatctl/mcp` | MCP server exposing the operations as agent tools |
-| `plugins/aichatctl` | The agent plugin (skill + commands) |
+| Package             | What it is                                                |
+| ------------------- | --------------------------------------------------------- |
+| `@aichatctl/sdk`    | The engine: platform drivers, transports, the sync engine |
+| `aichatctl` (CLI)   | Thin command-line over the SDK; `--json` on every command |
+| `@aichatctl/mcp`    | MCP server exposing the operations as agent tools         |
+| `plugins/aichatctl` | The agent plugin (skill + commands)                       |
 
 Build from source (Node ≥ 20, pnpm):
 

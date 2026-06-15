@@ -51,9 +51,7 @@ export function parseAudioFormat(value: string): AudioOverviewFormat {
   if (value in AUDIO_FORMAT_LABEL) {
     return value as AudioOverviewFormat;
   }
-  throw new AichatctlError(
-    `format must be one of: ${Object.keys(AUDIO_FORMAT_LABEL).join(", ")}`,
-  );
+  throw new AichatctlError(`format must be one of: ${Object.keys(AUDIO_FORMAT_LABEL).join(", ")}`);
 }
 
 /** Parses a CLI length string, throwing a usage-style error on an unknown value. */
@@ -61,7 +59,5 @@ export function parseAudioLength(value: string): AudioOverviewLength {
   if (value in AUDIO_LENGTH_LABEL) {
     return value as AudioOverviewLength;
   }
-  throw new AichatctlError(
-    `length must be one of: ${Object.keys(AUDIO_LENGTH_LABEL).join(", ")}`,
-  );
+  throw new AichatctlError(`length must be one of: ${Object.keys(AUDIO_LENGTH_LABEL).join(", ")}`);
 }

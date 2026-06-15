@@ -229,7 +229,9 @@ export async function createNotebookPodcast(
   options: CreateNotebookPodcastOptions,
 ): Promise<NotebookPodcastResult> {
   if (options.sources.length === 0) {
-    throw new AichatctlError("Provide at least one source: --source, --source-url, or --source-text.");
+    throw new AichatctlError(
+      "Provide at least one source: --source, --source-url, or --source-text.",
+    );
   }
   const driver = new NotebookLmDriver();
   if (options.skipLoginCheck !== true && !(await driver.isLoggedIn())) {
@@ -241,7 +243,8 @@ export async function createNotebookPodcast(
     const label = source.kind === "url" ? source.url : (source.title ?? "inline text");
     try {
       if (source.kind === "text") {
-        const body = source.title !== undefined ? `# ${source.title}\n\n${source.content}` : source.content;
+        const body =
+          source.title !== undefined ? `# ${source.title}\n\n${source.content}` : source.content;
         await driver.addTextSource(notebook, body);
       } else {
         await driver.addUrlSource(notebook, source.url);

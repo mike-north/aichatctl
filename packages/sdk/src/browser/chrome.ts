@@ -51,9 +51,7 @@ export interface LaunchChromeResult {
 export function launchChrome(options: LaunchChromeOptions): LaunchChromeResult {
   const executablePath = options.executablePath ?? findChromeExecutable();
   if (!executablePath) {
-    throw new Error(
-      "Could not find Google Chrome. Install it or pass an explicit executablePath.",
-    );
+    throw new Error("Could not find Google Chrome. Install it or pass an explicit executablePath.");
   }
   const userDataDir = options.userDataDir ?? chromeProfileDir();
   mkdirSync(userDataDir, { recursive: true });

@@ -19,7 +19,7 @@ public disclosure.
 - It makes no network calls of its own beyond driving the target web UIs in your
   browser; it sends no telemetry and collects no data.
 - The one place it calls a provider's internal endpoint (ChatGPT project
-  *instructions*) runs in your page context using your existing session; nothing
+  _instructions_) runs in your page context using your existing session; nothing
   is exfiltrated or stored.
 
 ## Hardening notes for users
