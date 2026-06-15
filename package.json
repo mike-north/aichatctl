@@ -3,10 +3,11 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@11.5.3",
   "license": "MIT",
   "description": "Drive Claude.ai, ChatGPT, Gemini, and NotebookLM web UIs from agents: sync project files, seed chat sessions, and create podcasts.",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
     "build": "tsc --build",
@@ -17,11 +18,16 @@
     "test": "vitest run",
     "api": "pnpm --filter @aichatctl/sdk run api",
     "plugin:build": "aipm build",
-    "plugin:validate": "aipm validate"
+    "plugin:validate": "aipm validate",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "pnpm build && changeset publish"
   },
   "devDependencies": {
     "@ai-plugin-marketplace/cli": "^0.2.0",
     "@ai-plugin-marketplace/core": "^0.3.0",
+    "@changesets/changelog-github": "^0.5.0",
+    "@changesets/cli": "^2.27.0",
     "@eslint/js": "^9.17.0",
     "@types/node": "^24.0.0",
     "eslint": "^9.17.0",

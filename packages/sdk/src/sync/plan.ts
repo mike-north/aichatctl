@@ -86,7 +86,11 @@ export function computePlan(input: PlanInput): SyncStep[] {
       continue;
     }
     if (remote && !remote.has(name)) {
-      steps.push({ action: "noop", name, reason: "removed from manifest; already absent remotely" });
+      steps.push({
+        action: "noop",
+        name,
+        reason: "removed from manifest; already absent remotely",
+      });
     } else {
       steps.push({ action: "delete", name, reason: "removed from manifest" });
     }

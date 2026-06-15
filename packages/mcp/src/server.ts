@@ -3,8 +3,12 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 
 import {
+  buildNotebookSources,
+  createNotebookPodcast,
   createSeededSession,
+  createSeededSessionViaApplescript,
   doctor,
+  doctorApplescript,
   listProjects,
   runSync,
 } from "@aichatctl/sdk";
@@ -12,24 +16,38 @@ import type { Platform } from "@aichatctl/sdk";
 
 import { getServerVersion } from "./version.js";
 
-const platformSchema = z.enum(["claude", "chatgpt"]);
+const seedPlatformSchema = z.enum(["claude", "chatgpt", "gemini"]);
+const syncPlatformSchema = z.enum(["claude", "chatgpt"]);
+const transportSchema = z.enum(["cdp", "applescript"]);
 const portSchema = z.number().int().positive().max(65535).optional();
+const formatSchema = z.enum(["deep-dive", "brief", "critique", "debate"]).default("deep-dive");
+const lengthSchema = z.enum(["short", "default", "long"]).default("default");
 
 /** Input shapes (ZodRawShape) for each tool, declared at module scope. */
-const doctorShape = { port: portSchema } as const;
-const projectListShape = { platform: platformSchema, port: portSchema } as const;
+const doctorShape = { transport: transportSchema.default("cdp"), port: portSchema } as const;
+const projectListShape = { platform: syncPlatformSchema, port: portSchema } as const;
 const syncShape = {
   configPath: z.string().min(1).default("aichatctl.config.yaml"),
-  platform: platformSchema.optional(),
+  platform: syncPlatformSchema.optional(),
   dryRun: z.boolean().default(false),
+  transport: transportSchema.default("cdp"),
   port: portSchema,
 } as const;
 const sessionCreateShape = {
-  platform: platformSchema,
+  platform: seedPlatformSchema,
   project: z.string().min(1),
   prompt: z.string().min(1),
   send: z.boolean().default(true),
+  transport: transportSchema.default("cdp"),
   port: portSchema,
+} as const;
+const notebookCreateShape = {
+  files: z.array(z.string().min(1)).default([]),
+  urls: z.array(z.string().min(1)).default([]),
+  text: z.string().min(1).optional(),
+  format: formatSchema,
+  length: lengthSchema,
+  prompt: z.string().min(1).optional(),
 } as const;
 
 function ok(data: unknown): CallToolResult {
@@ -54,12 +72,15 @@ export function createServer(): McpServer {
     "aichat_doctor",
     {
       description:
-        "Check CDP reachability, login state, and selector health for Claude.ai and ChatGPT.",
+        "Check transport readiness: CDP reachability + login (transport=cdp), or the " +
+        "AppleScript prerequisites + per-platform login (transport=applescript).",
       inputSchema: doctorShape,
     },
-    async ({ port }) => {
+    async ({ transport, port }) => {
       try {
-        return ok(await doctor(conn(port)));
+        return ok(
+          transport === "applescript" ? await doctorApplescript() : await doctor(conn(port)),
+        );
       } catch (error) {
         return fail(error);
       }
@@ -86,10 +107,10 @@ export function createServer(): McpServer {
     {
       description:
         "Mirror local files and instructions declared in the manifest into the project library. " +
-        "Use dryRun=true first to preview the plan.",
+        "Use dryRun=true first to preview the plan. transport=applescript drives your real Chrome (macOS).",
       inputSchema: syncShape,
     },
-    async ({ configPath, platform, dryRun, port }) => {
+    async ({ configPath, platform, dryRun, transport, port }) => {
       try {
         const platforms: readonly Platform[] | undefined =
           platform === undefined ? undefined : [platform];
@@ -97,6 +118,7 @@ export function createServer(): McpServer {
           await runSync({
             configPath,
             dryRun,
+            transport,
             ...(platforms ? { platforms } : {}),
             ...conn(port),
           }),
@@ -111,14 +133,50 @@ export function createServer(): McpServer {
     "aichat_session_create",
     {
       description:
-        "Create a new chat session in a project, seeded with a prompt. With send=true the prompt " +
-        "is submitted so the conversation can be continued from the mobile app.",
+        "Create a new chat session in a project, seeded with a prompt. send=true submits it so the " +
+        "conversation can be continued from the mobile app. Gemini is seed-only and requires transport=applescript.",
       inputSchema: sessionCreateShape,
     },
-    async ({ platform, project, prompt, send, port }) => {
+    async ({ platform, project, prompt, send, transport, port }) => {
       try {
+        if (platform === "gemini" && transport !== "applescript") {
+          return fail(new Error("Gemini is supported only via transport=applescript."));
+        }
+        const result =
+          transport === "applescript"
+            ? await createSeededSessionViaApplescript({ platform, project, prompt, send })
+            : await createSeededSession({ platform, project, prompt, send, ...conn(port) });
+        return ok(result);
+      } catch (error) {
+        return fail(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "aichat_notebook_create",
+    {
+      description:
+        "Create a NotebookLM notebook from local files and/or URLs and kick off an Audio Overview " +
+        "(podcast). Each file becomes a text source; each URL its own source. Returns the notebook URL " +
+        "once generation starts (the audio renders in the background). macOS only (uses AppleScript).",
+      inputSchema: notebookCreateShape,
+    },
+    async ({ files, urls, text, format, length, prompt }) => {
+      try {
+        const sources = buildNotebookSources({
+          files,
+          urls,
+          ...(text !== undefined ? { text } : {}),
+        });
+        if (sources.length === 0) {
+          return fail(new Error("Provide at least one source: files, urls, or text."));
+        }
         return ok(
-          await createSeededSession({ platform, project, prompt, send, ...conn(port) }),
+          await createNotebookPodcast({
+            sources,
+            audio: { format, length, ...(prompt !== undefined ? { prompt } : {}) },
+          }),
         );
       } catch (error) {
         return fail(error);

@@ -110,10 +110,7 @@ export class ClaudeDriver extends BaseDriver {
   public async deleteProjectFile(project: Project, remoteName: string): Promise<void> {
     const page = await this.open(project.url);
     try {
-      const row = claudeSelectors.projectFile
-        .locate(page)
-        .filter({ hasText: remoteName })
-        .first();
+      const row = claudeSelectors.projectFile.locate(page).filter({ hasText: remoteName }).first();
       if ((await row.count()) === 0) {
         // Already absent — nothing to do.
         return;

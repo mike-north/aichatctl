@@ -1,9 +1,22 @@
 {
   "name": "@aichatctl/sdk",
   "version": "0.1.0",
-  "description": "Core engine for driving the Claude.ai and ChatGPT web UIs: CDP attach, platform drivers, and the file-sync engine.",
+  "description": "Core engine for driving the Claude.ai, ChatGPT, Gemini, and NotebookLM web UIs: platform drivers, transports, and the file-sync engine.",
   "license": "MIT",
   "author": "Mike North <michael.l.north@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mike-north/aichatctl.git",
+    "directory": "packages/sdk"
+  },
+  "homepage": "https://github.com/mike-north/aichatctl#readme",
+  "bugs": "https://github.com/mike-north/aichatctl/issues",
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "exports": {
     ".": {
@@ -12,7 +25,9 @@
     }
   },
   "types": "./dist/sdk.d.ts",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc --build",
     "api": "api-extractor run --local && api-documenter markdown -i temp -o docs",
@@ -21,14 +36,12 @@
   "devDependencies": {
     "@microsoft/api-documenter": "^7.26.0",
     "@microsoft/api-extractor": "^7.58.0",
-    "@types/js-yaml": "^4.0.9",
-    "@types/ws": "^8.5.13"
+    "@types/js-yaml": "^4.0.9"
   },
   "dependencies": {
     "fast-glob": "^3.3.2",
     "js-yaml": "^4.1.0",
     "playwright-core": "^1.49.1",
-    "ws": "^8.18.0",
     "zod": "^3.24.1"
   }
 }

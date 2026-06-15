@@ -106,10 +106,7 @@ export class ChatgptDriver extends BaseDriver {
   public async deleteProjectFile(project: Project, remoteName: string): Promise<void> {
     const page = await this.open(project.url);
     try {
-      const row = chatgptSelectors.projectFile
-        .locate(page)
-        .filter({ hasText: remoteName })
-        .first();
+      const row = chatgptSelectors.projectFile.locate(page).filter({ hasText: remoteName }).first();
       if ((await row.count()) === 0) {
         return;
       }
