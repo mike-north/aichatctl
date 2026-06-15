@@ -915,30 +915,128 @@ URL lands as that document). Formats: `deep-dive` (default), `brief`, `critique`
 `url` once generation is kicked off — it does not wait for the audio to render.
 ````
 
-- [ ] **Step 2: Add a "Use case 3" entry to `SKILL.md`** (after Use case 2)
+- [ ] **Step 2: Update the `SKILL.md` frontmatter `description` to add the NotebookLM trigger — intent-only, no mechanism**
+
+The skill description is a *semantic-activation token*: it must describe **what the user wants**, never **how the browser is driven** (AppleScript/CDP/internal APIs are implementation detail the agent never needs). Replace the existing `description:` line with:
+
+```
+description: Use when the user wants to mirror repo files (and instructions) into a Claude.ai or ChatGPT project so it tracks a git source of truth, start a new seeded chat session to continue by voice on mobile (Claude, ChatGPT, or Gemini), or turn files and links into a NotebookLM notebook with a generated audio podcast. The agent decides WHAT to sync or say; the aichatctl CLI performs the actions.
+```
+
+(Do not mention transports, osascript, Chrome, CDP, Playwright, or extensions in the description.)
+
+- [ ] **Step 3: Add a "Use case 3" entry to `SKILL.md`** (after Use case 2). Keep the body about the capability + the command to run — no transport flag (it defaults correctly):
 
 ```markdown
-## Use case 3 — NotebookLM podcast (macOS / AppleScript)
+## Use case 3 — NotebookLM podcast
 
-Create a notebook from sources and start an Audio Overview the user can listen to
-on mobile. You compose the host-focus prompt; the CLI does the mechanics.
+Turn files and/or links into a NotebookLM notebook with a generated audio
+overview ("podcast") the user can listen to on mobile. You compose the
+host-focus prompt; the CLI creates the notebook, adds the sources, and starts
+generation.
 
 ```bash
-aichatctl notebook create --transport applescript \
+aichatctl notebook create \
   --source <file-or-dir>... --source-url <url>... \
   --format deep-dive --length default --prompt "<focus for the hosts>" --json
 ```
 
-Each file is added as a text source and each URL as its own website source.
-Returns the notebook `url` once the podcast generation is kicked off (the audio
-renders in the background — give the user the URL to open later).
+Each file becomes a text source and each URL its own source. Formats: `deep-dive`
+(default), `brief`, `critique`, `debate`; lengths: `short`, `default`, `long`.
+Returns the notebook `url` once generation is kicked off (the audio renders in the
+background — give the user the URL to open later).
 ```
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add README.md plugins/aichatctl/skills/aichatctl/SKILL.md
 git commit --author="Mike North <michael.l.north@gmail.com>" -m "docs(notebooklm): document notebook create command + skill use case"
+```
+
+---
+
+## Task 9: `/aichat-podcast` slash command
+
+**Files:**
+- Create: `plugins/aichatctl/commands/aichat-podcast.md`
+
+Mirror the style of `plugins/aichatctl/commands/aichat-seed-session.md` (read it first for the exact frontmatter + tone). The command guides an agent to compose the host-focus prompt, gather sources, and run `aichatctl notebook create`. Keep the `description` intent-focused and mechanism-free.
+
+- [ ] **Step 1: Write `plugins/aichatctl/commands/aichat-podcast.md`**
+
+```markdown
+---
+description: Turn repo files and links into a NotebookLM notebook with a generated audio podcast.
+argument-hint: [optional: files/urls or a topic]
+---
+
+You are creating a NotebookLM notebook and kicking off an audio overview
+("podcast") the user can listen to on mobile. Extra arguments: `$ARGUMENTS`.
+
+Steps:
+
+1. **Decide the sources** from the current context and `$ARGUMENTS`: which repo
+   files (or directories) and/or URLs should seed the notebook. Confirm the set
+   with the user if it's ambiguous.
+2. **Compose the host-focus prompt** — what the AI hosts should emphasize (the
+   angle, audience, or depth). This is the part that needs your reasoning.
+3. Pick a format (`deep-dive` default, or `brief` / `critique` / `debate`) and
+   length (`short` / `default` / `long`); confirm with the user if unsure.
+4. Create the notebook and start generation:
+   ```bash
+   aichatctl notebook create \
+     --source <file-or-dir>... --source-url <url>... \
+     --format <format> --length <length> \
+     --prompt "<focus for the hosts>" --json
+   ```
+5. Return the notebook `url` from the JSON and tell the user the podcast is
+   generating — they can open the URL on mobile and listen once it's ready.
+
+Each file becomes a text source and each URL its own source. Do not drive the
+browser yourself — the CLI handles all of it.
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add plugins/aichatctl/commands/aichat-podcast.md
+git commit --author="Mike North <michael.l.north@gmail.com>" -m "feat(plugin): add /aichat-podcast command for NotebookLM"
+```
+
+---
+
+## Task 10: Refresh plugin manifests (intent-focused, mechanism-free)
+
+**Files:**
+- Modify: `plugins/aichatctl/.claude-plugin/plugin.json`
+- Modify: `plugins/aichatctl/.codex-plugin/plugin.json`
+
+The current `description` ("...by driving the web UIs over the Chrome DevTools Protocol") and `keywords` (`cdp`, `playwright`) describe the *mechanism* and are stale (AppleScript is primary now; there's no extension). Rewrite both manifests' `description` + `keywords` to be intent/capability-focused.
+
+- [ ] **Step 1: Read both manifests** to preserve every other field (`schemaVersion`, `name`, `version`, `author`, etc.) exactly.
+
+- [ ] **Step 2: Set `description` (both files) to:**
+
+```
+Sync repo files into Claude.ai and ChatGPT project libraries, seed voice-ready chat sessions across Claude/ChatGPT/Gemini, and turn files and links into NotebookLM audio podcasts.
+```
+
+- [ ] **Step 3: Set `keywords` (both files) to:**
+
+```json
+["claude.ai", "chatgpt", "gemini", "notebooklm", "projects", "podcast", "automation"]
+```
+
+(Drop `cdp` and `playwright` — they name the mechanism, not the capability.)
+
+- [ ] **Step 4: Validate JSON** — `node -e "JSON.parse(require('fs').readFileSync('plugins/aichatctl/.claude-plugin/plugin.json','utf8'));JSON.parse(require('fs').readFileSync('plugins/aichatctl/.codex-plugin/plugin.json','utf8'));console.log('ok')"`
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add plugins/aichatctl/.claude-plugin/plugin.json plugins/aichatctl/.codex-plugin/plugin.json
+git commit --author="Mike North <michael.l.north@gmail.com>" -m "docs(plugin): refresh manifest description + keywords to capabilities"
 ```
 
 ---
