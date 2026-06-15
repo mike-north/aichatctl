@@ -38,9 +38,12 @@ transport notes in the [README](README.md#how-it-works).
    generated file in `.changeset/` with your PR.
 4. Open a pull request.
 
-On merge to `main`, the release workflow opens a "Version Packages" PR that
-collects pending changesets; merging that PR publishes to npm and creates the
-GitHub release.
+On merge to `main`, the release workflow runs: if there are **pending
+changesets**, it opens (or updates) a "Version Packages" PR that applies the
+bumps + changelog — merging that PR publishes to npm and creates the GitHub
+release. If there are **no pending changesets** but a package's version isn't yet
+on npm, it publishes directly. So always include a changeset with behavior
+changes, or the version won't bump.
 
 ## Scope & conduct
 
