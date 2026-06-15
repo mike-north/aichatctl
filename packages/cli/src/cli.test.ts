@@ -88,4 +88,44 @@ describe("run", () => {
     expect(code).toBe(1);
     expect(err.join("\n")).toMatch(/AppleScript transport/);
   });
+
+  it("rejects notebook create with no sources", async () => {
+    const { io, err } = captureIO();
+    const code = await run(
+      argv("notebook", "create", "--format", "deep-dive", "--length", "default"),
+      io,
+    );
+    expect(code).toBe(1);
+    expect(err.join("\n")).toMatch(/at least one source/i);
+  });
+
+  it("rejects an unknown --format as a usage error", async () => {
+    const { io, err } = captureIO();
+    const code = await run(
+      argv("notebook", "create", "--source-text", "hi", "--format", "podcast"),
+      io,
+    );
+    expect(code).toBe(1);
+    expect(err.join("\n")).toMatch(/deep-dive/);
+  });
+
+  it("rejects an unknown --length as a usage error", async () => {
+    const { io, err } = captureIO();
+    const code = await run(
+      argv("notebook", "create", "--source-text", "hi", "--length", "forever"),
+      io,
+    );
+    expect(code).toBe(1);
+    expect(err.join("\n")).toMatch(/short, default, long/);
+  });
+
+  it("rejects a non-applescript transport for notebook create", async () => {
+    const { io, err } = captureIO();
+    const code = await run(
+      argv("notebook", "create", "--source-text", "hi", "--transport", "cdp"),
+      io,
+    );
+    expect(code).toBe(1);
+    expect(err.join("\n")).toMatch(/AppleScript transport/);
+  });
 });

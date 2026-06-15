@@ -4,12 +4,16 @@ import {
   AichatctlError,
   DEFAULT_CDP_PORT,
   PLATFORMS,
+  buildNotebookSources,
+  createNotebookPodcast,
   createSeededSession,
   createSeededSessionViaApplescript,
   doctor,
   doctorApplescript,
   launchChrome,
   listProjects,
+  parseAudioFormat,
+  parseAudioLength,
   planHasChanges,
   readPromptSource,
   runSync,
@@ -51,6 +55,11 @@ function parseTransport(value: string): Transport {
     return value;
   }
   throw new InvalidArgumentError("transport must be 'cdp' or 'applescript'");
+}
+
+/** Commander reducer: accumulate a repeatable option into an array. */
+function collect(value: string, previous: string[]): string[] {
+  return [...previous, value];
 }
 
 function emit(io: IO, json: boolean, human: string, data: unknown): void {
@@ -234,6 +243,76 @@ export function buildProgram(io: IO = defaultIO): Command {
           io,
           opts.json,
           `${result.sent ? "Started" : "Staged"} session: ${result.url}`,
+          result,
+        );
+      },
+    );
+
+  // notebook create ------------------------------------------------------------
+  const notebook = program.command("notebook").description("Create NotebookLM notebooks + podcasts");
+  notebook
+    .command("create")
+    .description("Create a notebook, add sources, and kick off an Audio Overview (podcast)")
+    .option("--source <path>", "file or directory to add as a source (repeatable)", collect, [])
+    .option("--source-url <url>", "URL to add as its own source (repeatable)", collect, [])
+    .option("--source-text <text>", 'inline text source ("-" reads stdin)')
+    .option("--title <name>", "optional notebook title")
+    .option("--format <format>", "deep-dive | brief | critique | debate", "deep-dive")
+    .option("--length <length>", "short | default | long", "default")
+    .option("--prompt <text>", "what the AI hosts should focus on")
+    .option("--prompt-file <path>", 'read the host-focus prompt from a file ("-" for stdin)')
+    // Only `applescript` is valid today; the flag exists for consistency with other
+    // commands and to leave room for future transports. The guard below rejects others.
+    .option("--transport <t>", "applescript (only)", parseTransport, "applescript")
+    .option("--json", "machine-readable output", false)
+    .action(
+      async (opts: {
+        source: string[];
+        sourceUrl: string[];
+        sourceText?: string;
+        title?: string;
+        format: string;
+        length: string;
+        prompt?: string;
+        promptFile?: string;
+        transport: Transport;
+        json: boolean;
+      }) => {
+        if (opts.sourceText === "-" && opts.promptFile === "-") {
+          throw new AichatctlError(
+            "Cannot read both --source-text and --prompt-file from stdin in the same invocation.",
+          );
+        }
+        if (opts.transport !== "applescript") {
+          throw new AichatctlError(
+            "NotebookLM is supported only via the AppleScript transport. Re-run with --transport applescript.",
+          );
+        }
+        const format = parseAudioFormat(opts.format);
+        const length = parseAudioLength(opts.length);
+        const text =
+          opts.sourceText === "-" ? readPromptSource("-") : opts.sourceText;
+        const sources = buildNotebookSources({
+          files: opts.source,
+          urls: opts.sourceUrl,
+          ...(text !== undefined ? { text } : {}),
+        });
+        if (sources.length === 0) {
+          throw new AichatctlError(
+            "Provide at least one source: --source, --source-url, or --source-text.",
+          );
+        }
+        const prompt =
+          opts.promptFile !== undefined ? readPromptSource(opts.promptFile) : opts.prompt;
+        const result = await createNotebookPodcast({
+          sources,
+          audio: { format, length, ...(prompt !== undefined ? { prompt } : {}) },
+          ...(opts.title !== undefined ? { title: opts.title } : {}),
+        });
+        emit(
+          io,
+          opts.json,
+          `Created notebook + kicked off ${format} podcast: ${result.url}`,
           result,
         );
       },
