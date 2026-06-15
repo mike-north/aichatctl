@@ -8,9 +8,15 @@ coverage/
 .aichatctl/
 scratch/
 
+# user's real manifest — contains personal project names/URLs/ids (commit only the .example)
+aichatctl.config.yaml
+aichatctl.config.*.yaml
+
 # local secrets / machine-specific
 *.local.*
 .DS_Store
+# Captured network traffic (may contain auth tokens/cookies)
+*.har
 # Logs
 logs
 *.log
@@ -157,3 +163,6 @@ vite.config.ts.timestamp-*
 
 # Claude Code local configuration (auto-added)
 .claude/*.local.*
+
+# internal agent planning artifacts (specs/plans)
+docs/superpowers/

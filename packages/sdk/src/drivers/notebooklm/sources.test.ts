@@ -1,7 +1,6 @@
 /**
- * Tests for NotebookLM source normalization.
- *
- * @see docs/superpowers/specs/2026-06-14-notebooklm-podcast-design.md (Source model)
+ * Tests for NotebookLM source normalization: files/dirs, inline text, and URLs
+ * become an ordered, typed source list (files → text → URLs).
  */
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

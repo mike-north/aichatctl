@@ -1,7 +1,5 @@
 /**
  * Tests for the createNotebookPodcast guard that runs before any browser work.
- *
- * @see docs/superpowers/specs/2026-06-14-notebooklm-podcast-design.md
  */
 import { describe, expect, it } from "vitest";
 
