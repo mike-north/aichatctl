@@ -1,9 +1,22 @@
 {
   "name": "@aichatctl/mcp",
   "version": "0.1.0",
-  "description": "MCP server exposing aichatctl operations (sync, seed session, doctor) as agent tools.",
+  "description": "MCP server exposing aichatctl operations (sync, seed session, NotebookLM podcast, doctor) as agent tools.",
   "license": "MIT",
   "author": "Mike North <michael.l.north@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mike-north/aichatctl.git",
+    "directory": "packages/mcp"
+  },
+  "homepage": "https://github.com/mike-north/aichatctl#readme",
+  "bugs": "https://github.com/mike-north/aichatctl/issues",
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "bin": {
     "aichatctl-mcp": "dist/bin.js"

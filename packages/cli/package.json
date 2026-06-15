@@ -1,14 +1,35 @@
 {
   "name": "aichatctl",
   "version": "0.1.0",
-  "description": "CLI to drive the Claude.ai and ChatGPT web UIs: sync project files and seed chat sessions.",
+  "description": "CLI to drive the Claude.ai, ChatGPT, Gemini, and NotebookLM web UIs: sync project files, seed chat sessions, and create podcasts.",
   "license": "MIT",
   "author": "Mike North <michael.l.north@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mike-north/aichatctl.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/mike-north/aichatctl#readme",
+  "bugs": "https://github.com/mike-north/aichatctl/issues",
+  "keywords": [
+    "claude",
+    "chatgpt",
+    "gemini",
+    "notebooklm",
+    "automation",
+    "cli",
+    "podcast"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "type": "module",
   "bin": {
     "aichatctl": "dist/bin.js"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc --build"
   },

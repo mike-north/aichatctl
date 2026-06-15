@@ -55,13 +55,10 @@ the one place `aichatctl` calls ChatGPT's own endpoint (via your live session). 
 ## Quickstart
 
 ```bash
-git clone <this-repo> aichatctl && cd aichatctl
-pnpm install && pnpm build
+npm install -g aichatctl        # or: pnpm add -g aichatctl
 ```
 
-The CLI binary is `packages/cli/dist/bin.js`. The examples below call it as
-`aichatctl` — put it on your PATH with an alias (`alias aichatctl="node $PWD/packages/cli/dist/bin.js"`)
-or `npm link` it from `packages/cli`.
+(Prefer to build from source? See [Repo layout](#repo-layout).)
 
 Enable the Chrome toggle above, then check you're ready:
 
@@ -199,6 +196,21 @@ It provides the `aichatctl` skill (activates automatically) plus `/aichat-sync`,
 and calls the CLI; it never drives the browser itself. Cross-platform builds (Codex,
 etc.) are produced with [`aipm`](https://github.com/ai-plugin-marketplace/tools).
 
+## MCP server
+
+`@aichatctl/mcp` exposes the same operations as MCP tools (`aichat_doctor`,
+`aichat_project_list`, `aichat_sync`, `aichat_session_create`,
+`aichat_notebook_create`) for any MCP-capable client. Point your client at the
+`aichatctl-mcp` binary over stdio:
+
+```json
+{
+  "mcpServers": {
+    "aichatctl": { "command": "npx", "args": ["-y", "@aichatctl/mcp"] }
+  }
+}
+```
+
 ## Security & scope
 
 `aichatctl` operates **your own** authenticated accounts for personal productivity,
@@ -215,14 +227,19 @@ this is a documented, deliberate trade-off, not hidden behavior.
 | `@aichatctl/mcp` | MCP server exposing the operations as agent tools |
 | `plugins/aichatctl` | The agent plugin (skill + commands) |
 
+Build from source (Node ≥ 20, pnpm):
+
 ```bash
+git clone https://github.com/mike-north/aichatctl.git && cd aichatctl
+pnpm install
 pnpm build      # compile all packages
 pnpm test       # run the test suite
 pnpm lint       # eslint
 ```
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the change/release workflow.
+
 ## Status & license
 
-Early and personal — a productivity tool for the author's own accounts, not a
-published package. APIs and commands may change. Released under the
-[MIT License](LICENSE).
+Early (`0.x`) — APIs and commands may change. Released under the
+[MIT License](LICENSE). Security disclosures: [SECURITY.md](SECURITY.md).
