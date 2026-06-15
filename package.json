@@ -7,7 +7,7 @@
   "license": "MIT",
   "description": "Drive Claude.ai, ChatGPT, Gemini, and NotebookLM web UIs from agents: sync project files, seed chat sessions, and create podcasts.",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
     "build": "tsc --build",

@@ -47,7 +47,7 @@ the one place `aichatctl` calls ChatGPT's own endpoint (via your live session). 
 
 - **macOS** for the primary (extension-free) transport — it uses `osascript`. The
   CDP fallback works elsewhere and headless (see [Transports](#how-it-works)).
-- **Node ≥ 20** and **pnpm**.
+- **Node ≥ 22** and **pnpm**.
 - **Google Chrome**, signed in to the services you target (it uses your real session).
 - One Chrome toggle for the AppleScript transport: **View → Developer → Allow
   JavaScript from Apple Events**.
@@ -227,7 +227,7 @@ this is a documented, deliberate trade-off, not hidden behavior.
 | `@aichatctl/mcp`    | MCP server exposing the operations as agent tools         |
 | `plugins/aichatctl` | The agent plugin (skill + commands)                       |
 
-Build from source (Node ≥ 20, pnpm):
+Build from source (Node ≥ 22, pnpm):
 
 ```bash
 git clone https://github.com/mike-north/aichatctl.git && cd aichatctl
