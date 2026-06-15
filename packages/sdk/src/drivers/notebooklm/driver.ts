@@ -89,10 +89,12 @@ export class NotebookLmDriver {
    *   Emitted verbatim into page JS — never pass user-controlled data here.
    */
   static #fillTextareaJs(placeholderReLiteral: string, value: string): string {
+    // Search the whole document (not the first [role="dialog"], which may be a
+    // stray overlay) and match the textarea strictly by placeholder — no
+    // first-textarea fallback, which would grab an unrelated field (e.g. the
+    // source picker's "Search the web for new sources" box).
     return `
-      var dlg=document.querySelector('[role="dialog"]')||document;
-      var tas=Array.from(dlg.querySelectorAll('textarea'));
-      var ta=tas.find(function(t){return ${placeholderReLiteral}.test((t.getAttribute("placeholder")||t.getAttribute("aria-label")||""));})||tas[0];
+      var ta=Array.from(document.querySelectorAll('textarea')).find(function(t){return ${placeholderReLiteral}.test((t.getAttribute("placeholder")||t.getAttribute("aria-label")||""));});
       if(!ta)return JSON.stringify({ok:false,why:"no textarea"});
       ta.focus();
       var d=Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype,"value");d.set.call(ta,${JSON.stringify(value)});
@@ -103,16 +105,14 @@ export class NotebookLmDriver {
   /** Clicks the dialog "Insert" button, then waits for the dialog to close. */
   async #insertAndSettle(nb: Notebook): Promise<void> {
     const clicked = (await this.#evalNotebook(nb, `
-      var dlg=document.querySelector('[role="dialog"]')||document;
-      var b=Array.from(dlg.querySelectorAll('button')).find(function(x){return /^insert$/i.test((x.innerText||"").trim());});
+      var b=Array.from(document.querySelectorAll('button')).find(function(x){return /^insert$/i.test((x.innerText||"").trim());});
       if(!b)return JSON.stringify({ok:false});
       b.click();return JSON.stringify({ok:true});`)) as { ok: boolean };
     if (!clicked.ok) throw new AichatctlError("NotebookLM 'Insert' not found (calibration).");
     for (let i = 0; i < 30; i++) {
       await sleep(500);
       const r = (await this.#evalNotebook(nb, `
-        var dlg=document.querySelector('[role="dialog"]')||document;
-        var open=Array.from(dlg.querySelectorAll('button')).some(function(x){return /^insert$/i.test((x.innerText||"").trim());});
+        var open=Array.from(document.querySelectorAll('button')).some(function(x){return /^insert$/i.test((x.innerText||"").trim());});
         return JSON.stringify({open:open});`)) as { open: boolean };
       // Insert button gone = dialog committed (proxy for "source added").
       if (!r.open) return;
@@ -167,24 +167,25 @@ export class NotebookLmDriver {
     if (!open.ok) throw new AichatctlError("NotebookLM 'Customize Audio Overview' not found (calibration).");
     await sleep(1200);
 
-    // Format cards include a subtitle, so match by prefix; length buttons are exact labels.
+    // Format cards are <mat-radio-button> tiles (text = label + subtitle), so match
+    // by prefix and click the inner radio input.
     const formatLabel = AUDIO_FORMAT_LABEL[opts.format];
     const fmt = (await this.#evalNotebook(nb, `
-      var dlg=document.querySelector('[role="dialog"]')||document;
-      var el=Array.from(dlg.querySelectorAll('button,[role="radio"],[role="option"],[role="button"]')).find(function(e){return (e.innerText||"").trim().indexOf(${JSON.stringify(formatLabel)})===0;});
+      var el=Array.from(document.querySelectorAll('mat-radio-button')).find(function(e){return (e.innerText||"").trim().indexOf(${JSON.stringify(formatLabel)})===0;});
       if(!el)return JSON.stringify({ok:false});
-      el.click();return JSON.stringify({ok:true});`)) as { ok: boolean };
+      (el.querySelector('input[type="radio"]')||el).click();return JSON.stringify({ok:true});`)) as { ok: boolean };
     if (!fmt.ok) throw new AichatctlError(`NotebookLM format "${formatLabel}" not found (calibration).`);
-    await sleep(400);
+    await sleep(500);
 
+    // Length is a <mat-button-toggle> group that only appears for some formats
+    // (e.g. Deep Dive); Brief/Critique/Debate omit it. Apply best-effort — skip
+    // silently when the control isn't present rather than failing.
     const lengthLabel = AUDIO_LENGTH_LABEL[opts.length];
     const len = (await this.#evalNotebook(nb, `
-      var dlg=document.querySelector('[role="dialog"]')||document;
-      var el=Array.from(dlg.querySelectorAll('button,[role="radio"],[role="option"],[role="button"]')).find(function(e){return (e.innerText||"").trim()===${JSON.stringify(lengthLabel)};});
-      if(!el)return JSON.stringify({ok:false});
-      el.click();return JSON.stringify({ok:true});`)) as { ok: boolean };
-    if (!len.ok) throw new AichatctlError(`NotebookLM length "${lengthLabel}" not found (calibration).`);
-    await sleep(300);
+      var el=Array.from(document.querySelectorAll('mat-button-toggle button,button[role="radio"]')).find(function(e){return (e.innerText||"").trim()===${JSON.stringify(lengthLabel)};});
+      if(!el)return JSON.stringify({present:false});
+      el.click();return JSON.stringify({present:true});`)) as { present: boolean };
+    if (len.present) await sleep(300);
 
     if (opts.prompt !== undefined && opts.prompt.length > 0) {
       await this.#evalNotebook(nb, NotebookLmDriver.#fillTextareaJs("/focus|things to try/i", opts.prompt));
@@ -192,8 +193,7 @@ export class NotebookLmDriver {
     }
 
     const gen = (await this.#evalNotebook(nb, `
-      var dlg=document.querySelector('[role="dialog"]')||document;
-      var b=Array.from(dlg.querySelectorAll('button')).find(function(x){return /^generate$/i.test((x.innerText||"").trim());});
+      var b=Array.from(document.querySelectorAll('button')).find(function(x){return /^generate$/i.test((x.innerText||"").trim());});
       if(!b)return JSON.stringify({ok:false});
       b.click();return JSON.stringify({ok:true});`)) as { ok: boolean };
     if (!gen.ok) throw new AichatctlError("NotebookLM 'Generate' not found (calibration).");
