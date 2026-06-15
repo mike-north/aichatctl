@@ -5,7 +5,9 @@ import { DEFAULT_CDP_PORT } from "./config.js";
 import { AppleScriptDriver } from "./drivers/applescript/driver.js";
 import { createDriver } from "./drivers/factory.js";
 import type { Driver } from "./drivers/driver.js";
-import { NotLoggedInError } from "./errors.js";
+import { NotebookLmDriver } from "./drivers/notebooklm/driver.js";
+import type { AudioOverviewOptions, NotebookSource } from "./drivers/notebooklm/types.js";
+import { AichatctlError, NotLoggedInError } from "./errors.js";
 import { loadManifest, manifestForPlatform } from "./sync/manifest.js";
 import { syncPlatform } from "./sync/sync.js";
 import type { SyncReport } from "./sync/sync.js";
@@ -197,4 +199,55 @@ export async function runSync(options: RunSyncOptions): Promise<SyncReport[]> {
   } finally {
     await session.close();
   }
+}
+
+/** Options for {@link createNotebookPodcast}. */
+export interface CreateNotebookPodcastOptions {
+  /** Optional notebook title (NotebookLM auto-titles from content if omitted). */
+  readonly title?: string;
+  /** Ordered, normalized source list (build with `buildNotebookSources`). */
+  readonly sources: readonly NotebookSource[];
+  /** Audio Overview format/length/prompt. */
+  readonly audio: AudioOverviewOptions;
+  /** Skip the logged-in precondition check. */
+  readonly skipLoginCheck?: boolean;
+}
+
+/** Result of {@link createNotebookPodcast}. */
+export interface NotebookPodcastResult {
+  readonly url: string;
+  readonly notebookId: string;
+  readonly sourcesAdded: number;
+  readonly podcastKicked: boolean;
+}
+
+/**
+ * Creates a NotebookLM notebook, adds the given sources (one insert each — URLs
+ * become distinct document sources), and kicks off an Audio Overview. Returns
+ * once generation is kicked off; it does not wait for the (minutes-long) render.
+ * AppleScript transport only (NotebookLM is a Google product; macOS-only).
+ */
+export async function createNotebookPodcast(
+  options: CreateNotebookPodcastOptions,
+): Promise<NotebookPodcastResult> {
+  if (options.sources.length === 0) {
+    throw new AichatctlError("Provide at least one source (--source, --source-url, or --source-text).");
+  }
+  const driver = new NotebookLmDriver();
+  if (options.skipLoginCheck !== true && !(await driver.isLoggedIn())) {
+    throw new NotLoggedInError("notebooklm");
+  }
+  const notebook = await driver.createNotebook();
+  let sourcesAdded = 0;
+  for (const source of options.sources) {
+    if (source.kind === "text") {
+      const body = source.title !== undefined ? `# ${source.title}\n\n${source.content}` : source.content;
+      await driver.addTextSource(notebook, body);
+    } else {
+      await driver.addUrlSource(notebook, source.url);
+    }
+    sourcesAdded += 1;
+  }
+  await driver.generateAudioOverview(notebook, options.audio);
+  return { url: notebook.url, notebookId: notebook.id, sourcesAdded, podcastKicked: true };
 }
