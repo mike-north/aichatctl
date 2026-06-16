@@ -40,11 +40,24 @@ const RUNNER_SCRIPT = `on run argv
   set matchUrl to item 1 of argv
   set createUrl to item 2 of argv
   set jsFile to item 3 of argv
+  set windowFilter to item 4 of argv
   set jsCode to (do shell script "cat " & quoted form of jsFile)
   tell application "Google Chrome"
     if (count of windows) is 0 then make new window
     set found to missing value
-    repeat with w in windows
+    if windowFilter is "" then
+      set targetWindows to windows
+    else
+      set targetWindows to {}
+      set AppleScript's text item delimiters to ","
+      set filterIds to text items of windowFilter
+      repeat with w in windows
+        if (id of w as text) is in filterIds then
+          set end of targetWindows to w
+        end if
+      end repeat
+    end if
+    repeat with w in targetWindows
       repeat with tb in tabs of w
         if (URL of tb) contains matchUrl then
           set found to tb
@@ -54,7 +67,12 @@ const RUNNER_SCRIPT = `on run argv
       if found is not missing value then exit repeat
     end repeat
     if found is missing value then
-      set found to (make new tab at end of tabs of front window with properties {URL:createUrl})
+      if (count of targetWindows) > 0 then
+        set targetWin to item 1 of targetWindows
+      else
+        set targetWin to front window
+      end if
+      set found to (make new tab at end of tabs of targetWin with properties {URL:createUrl})
       delay 2
     end if
     repeat 40 times
@@ -74,6 +92,8 @@ export interface EvalOptions {
   readonly createUrl: string;
   /** Per-call timeout (ms). */
   readonly timeoutMs?: number;
+  /** Constrain tab search to these Chrome window IDs. Omit to search all. */
+  readonly windowIds?: readonly string[];
 }
 
 /** Executes `jsCode` in the matching Chrome tab and returns its string result. */
@@ -85,9 +105,13 @@ export async function evalInChromeTab(jsCode: string, options: EvalOptions): Pro
   writeFileSync(jsPath, jsCode, "utf8");
   writeFileSync(scptPath, RUNNER_SCRIPT, "utf8");
   try {
+    const windowFilter =
+      options.windowIds !== undefined && options.windowIds.length > 0
+        ? options.windowIds.join(",")
+        : "";
     const { stdout } = await execFileAsync(
       "osascript",
-      [scptPath, options.matchUrl, options.createUrl, jsPath],
+      [scptPath, options.matchUrl, options.createUrl, jsPath, windowFilter],
       { maxBuffer: 16 * 1024 * 1024, timeout: options.timeoutMs ?? 30_000 },
     );
     return stdout.replace(/\n$/, "");

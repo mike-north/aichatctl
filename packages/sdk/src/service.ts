@@ -1,5 +1,7 @@
 import { readFileSync } from "node:fs";
 
+import { resolveProfile } from "./applescript/profile.js";
+import type { ProfileHint } from "./applescript/profile.js";
 import { BrowserSession } from "./browser/session.js";
 import { DEFAULT_CDP_PORT } from "./config.js";
 import { AppleScriptDriver } from "./drivers/applescript/driver.js";
@@ -202,10 +204,20 @@ export async function runSync(options: RunSyncOptions): Promise<SyncReport[]> {
   }
 }
 
+async function resolveWindowIds(
+  profile: ProfileHint | undefined,
+): Promise<readonly string[] | undefined> {
+  if (profile === undefined) return undefined;
+  const resolved = await resolveProfile(profile);
+  return resolved.windowIds;
+}
+
 /** Options for {@link createEmptyNotebook}. */
 export interface CreateNotebookOptions {
   /** Name to give the notebook (omit to leave untitled). */
   readonly name?: string;
+  /** Target a specific Chrome profile by account email or display name. */
+  readonly profile?: ProfileHint;
   /** Skip the logged-in precondition check. */
   readonly skipLoginCheck?: boolean;
 }
@@ -222,7 +234,8 @@ export interface NotebookResult {
  * AppleScript transport only (macOS).
  */
 export async function createEmptyNotebook(options: CreateNotebookOptions): Promise<NotebookResult> {
-  const driver = new NotebookLmDriver();
+  const windowIds = await resolveWindowIds(options.profile);
+  const driver = new NotebookLmDriver(windowIds);
   if (options.skipLoginCheck !== true && !(await driver.isLoggedIn())) {
     throw new NotLoggedInError("notebooklm");
   }
@@ -240,6 +253,8 @@ export interface RenameNotebookOptions {
   readonly notebook: string;
   /** New name for the notebook. */
   readonly name: string;
+  /** Target a specific Chrome profile. */
+  readonly profile?: ProfileHint;
   /** Skip the logged-in precondition check. */
   readonly skipLoginCheck?: boolean;
 }
@@ -250,7 +265,8 @@ export async function renameNotebook(options: RenameNotebookOptions): Promise<vo
     throw new AichatctlError("Provide a non-empty --name.");
   }
   const nb = NotebookLmDriver.parseNotebookRef(options.notebook);
-  const driver = new NotebookLmDriver();
+  const windowIds = await resolveWindowIds(options.profile);
+  const driver = new NotebookLmDriver(windowIds);
   if (options.skipLoginCheck !== true && !(await driver.isLoggedIn())) {
     throw new NotLoggedInError("notebooklm");
   }
@@ -261,6 +277,8 @@ export async function renameNotebook(options: RenameNotebookOptions): Promise<vo
 export interface ListSourcesOptions {
   /** Notebook URL or UUID. */
   readonly notebook: string;
+  /** Target a specific Chrome profile. */
+  readonly profile?: ProfileHint;
   /** Skip the logged-in precondition check. */
   readonly skipLoginCheck?: boolean;
 }
@@ -276,7 +294,8 @@ export async function listNotebookSources(
   options: ListSourcesOptions,
 ): Promise<NotebookSourcesResult> {
   const nb = NotebookLmDriver.parseNotebookRef(options.notebook);
-  const driver = new NotebookLmDriver();
+  const windowIds = await resolveWindowIds(options.profile);
+  const driver = new NotebookLmDriver(windowIds);
   if (options.skipLoginCheck !== true && !(await driver.isLoggedIn())) {
     throw new NotLoggedInError("notebooklm");
   }
@@ -290,6 +309,8 @@ export interface GeneratePodcastOptions {
   readonly notebook: string;
   /** Audio Overview type/length/prompt. */
   readonly audio: AudioOverviewOptions;
+  /** Target a specific Chrome profile. */
+  readonly profile?: ProfileHint;
   /** Skip the logged-in precondition check. */
   readonly skipLoginCheck?: boolean;
 }
@@ -301,7 +322,8 @@ export interface GeneratePodcastOptions {
  */
 export async function generateNotebookPodcast(options: GeneratePodcastOptions): Promise<void> {
   const nb = NotebookLmDriver.parseNotebookRef(options.notebook);
-  const driver = new NotebookLmDriver();
+  const windowIds = await resolveWindowIds(options.profile);
+  const driver = new NotebookLmDriver(windowIds);
   if (options.skipLoginCheck !== true && !(await driver.isLoggedIn())) {
     throw new NotLoggedInError("notebooklm");
   }
@@ -314,6 +336,8 @@ export interface RemoveSourceOptions {
   readonly notebook: string;
   /** Display name (or prefix) of the source to remove. */
   readonly source: string;
+  /** Target a specific Chrome profile. */
+  readonly profile?: ProfileHint;
   /** Skip the logged-in precondition check. */
   readonly skipLoginCheck?: boolean;
 }
@@ -321,7 +345,8 @@ export interface RemoveSourceOptions {
 /** Removes a source from a notebook by its display name. AppleScript transport only (macOS). */
 export async function removeNotebookSource(options: RemoveSourceOptions): Promise<void> {
   const nb = NotebookLmDriver.parseNotebookRef(options.notebook);
-  const driver = new NotebookLmDriver();
+  const windowIds = await resolveWindowIds(options.profile);
+  const driver = new NotebookLmDriver(windowIds);
   if (options.skipLoginCheck !== true && !(await driver.isLoggedIn())) {
     throw new NotLoggedInError("notebooklm");
   }
@@ -336,6 +361,8 @@ export interface AddSourceOptions {
   readonly kind: "text" | "url";
   /** The content (for kind=text) or URL (for kind=url) to add. */
   readonly content: string;
+  /** Target a specific Chrome profile. */
+  readonly profile?: ProfileHint;
   /** Skip the logged-in precondition check. */
   readonly skipLoginCheck?: boolean;
 }
@@ -355,7 +382,8 @@ export async function addNotebookSource(options: AddSourceOptions): Promise<AddS
     throw new AichatctlError("Provide non-empty content for the source.");
   }
   const nb = NotebookLmDriver.parseNotebookRef(options.notebook);
-  const driver = new NotebookLmDriver();
+  const windowIds = await resolveWindowIds(options.profile);
+  const driver = new NotebookLmDriver(windowIds);
   if (options.skipLoginCheck !== true && !(await driver.isLoggedIn())) {
     throw new NotLoggedInError("notebooklm");
   }

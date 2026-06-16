@@ -23,7 +23,7 @@ import {
   renameNotebook,
   runSync,
 } from "@aichatctl/sdk";
-import type { Platform } from "@aichatctl/sdk";
+import type { Platform, ProfileHint } from "@aichatctl/sdk";
 
 import { getCliVersion } from "./version.js";
 
@@ -66,6 +66,19 @@ function emit(io: IO, json: boolean, human: string, data: unknown): void {
   io.out(json ? JSON.stringify(data, null, 2) : human);
 }
 
+function getProfileHint(opts: {
+  browserAccount?: string;
+  browserProfile?: string;
+}): ProfileHint | undefined {
+  if (opts.browserAccount === undefined && opts.browserProfile === undefined) {
+    return undefined;
+  }
+  return {
+    ...(opts.browserAccount !== undefined ? { account: opts.browserAccount } : {}),
+    ...(opts.browserProfile !== undefined ? { name: opts.browserProfile } : {}),
+  };
+}
+
 /** Builds the commander program. Exposed for testing. */
 export function buildProgram(io: IO = defaultIO): Command {
   const program = new Command();
@@ -73,6 +86,8 @@ export function buildProgram(io: IO = defaultIO): Command {
     .name("aichatctl")
     .description("Drive the Claude.ai and ChatGPT web UIs: sync project files and seed sessions.")
     .version(getCliVersion(), "-v, --version")
+    .option("--browser-account <email>", "target a Chrome profile by signed-in Google account")
+    .option("--browser-profile <name>", "target a Chrome profile by display name")
     .exitOverride()
     .configureOutput({
       writeOut: (str) => {
@@ -265,8 +280,10 @@ export function buildProgram(io: IO = defaultIO): Command {
           "NotebookLM is supported only via the AppleScript transport. Re-run with --transport applescript.",
         );
       }
+      const profile = getProfileHint(program.opts());
       const result = await createEmptyNotebook({
         ...(opts.name !== undefined ? { name: opts.name } : {}),
+        ...(profile !== undefined ? { profile } : {}),
       });
       emit(
         io,
@@ -290,7 +307,12 @@ export function buildProgram(io: IO = defaultIO): Command {
             "NotebookLM is supported only via the AppleScript transport. Re-run with --transport applescript.",
           );
         }
-        await renameNotebook({ notebook: opts.notebook, name: opts.name });
+        const profile = getProfileHint(program.opts());
+        await renameNotebook({
+          notebook: opts.notebook,
+          name: opts.name,
+          ...(profile !== undefined ? { profile } : {}),
+        });
         const nb = NotebookLmDriver.parseNotebookRef(opts.notebook);
         emit(io, opts.json, `Renamed notebook to "${opts.name}": ${nb.url}`, {
           id: nb.id,
@@ -313,7 +335,11 @@ export function buildProgram(io: IO = defaultIO): Command {
           "NotebookLM is supported only via the AppleScript transport. Re-run with --transport applescript.",
         );
       }
-      const result = await listNotebookSources({ notebook: opts.notebook });
+      const profile = getProfileHint(program.opts());
+      const result = await listNotebookSources({
+        notebook: opts.notebook,
+        ...(profile !== undefined ? { profile } : {}),
+      });
       const human = result.sources.length
         ? result.sources.map((s, i) => `${String(i + 1)}. ${s}`).join("\n")
         : "(no sources)";
@@ -334,7 +360,12 @@ export function buildProgram(io: IO = defaultIO): Command {
             "NotebookLM is supported only via the AppleScript transport. Re-run with --transport applescript.",
           );
         }
-        await removeNotebookSource({ notebook: opts.notebook, source: opts.source });
+        const profile = getProfileHint(program.opts());
+        await removeNotebookSource({
+          notebook: opts.notebook,
+          source: opts.source,
+          ...(profile !== undefined ? { profile } : {}),
+        });
         emit(io, opts.json, `Removed source "${opts.source}"`, {
           notebook: opts.notebook,
           source: opts.source,
@@ -380,7 +411,13 @@ export function buildProgram(io: IO = defaultIO): Command {
         } else {
           throw new AichatctlError("Provide one of --text, --text-file, or --url.");
         }
-        const result = await addNotebookSource({ notebook: opts.notebook, kind, content });
+        const profile = getProfileHint(program.opts());
+        const result = await addNotebookSource({
+          notebook: opts.notebook,
+          kind,
+          content,
+          ...(profile !== undefined ? { profile } : {}),
+        });
         emit(io, opts.json, `Added source: "${result.title}"`, {
           notebook: opts.notebook,
           title: result.title,
@@ -418,10 +455,12 @@ export function buildProgram(io: IO = defaultIO): Command {
         const length = parseAudioLength(opts.length);
         const prompt =
           opts.promptFile !== undefined ? readPromptSource(opts.promptFile) : opts.prompt;
+        const profile = getProfileHint(program.opts());
         const nb = NotebookLmDriver.parseNotebookRef(opts.notebook);
         await generateNotebookPodcast({
           notebook: opts.notebook,
           audio: { format, length, ...(prompt !== undefined ? { prompt } : {}) },
+          ...(profile !== undefined ? { profile } : {}),
         });
         emit(io, opts.json, `Kicked off ${format} podcast: ${nb.url}`, {
           id: nb.id,

@@ -40,6 +40,12 @@ export interface Notebook {
  * (it does not implement the chat `Driver` interface).
  */
 export class NotebookLmDriver {
+  readonly #windowIds: readonly string[] | undefined;
+
+  constructor(windowIds?: readonly string[]) {
+    this.#windowIds = windowIds;
+  }
+
   /**
    * Parses a notebook reference (full URL or bare hex-UUID id) into a Notebook.
    * Throws if the reference doesn't match the expected format.
@@ -60,7 +66,11 @@ export class NotebookLmDriver {
   /** Runs `jsBody` (which must `return` a JSON string) in the matched tab. */
   async #eval(matchUrl: string, createUrl: string, jsBody: string): Promise<unknown> {
     const js = `(function(){try{${jsBody}}catch(e){return JSON.stringify({__error:String((e&&e.message)||e)});}})()`;
-    const out = await evalInChromeTab(js, { matchUrl, createUrl });
+    const out = await evalInChromeTab(js, {
+      matchUrl,
+      createUrl,
+      ...(this.#windowIds !== undefined ? { windowIds: this.#windowIds } : {}),
+    });
     let parsed: unknown;
     try {
       parsed = JSON.parse(out);

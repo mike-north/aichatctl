@@ -40,6 +40,8 @@ export type {
   NotebookSource,
 } from "./drivers/notebooklm/types.js";
 export { evalInChromeTab, runAppleScript, AppleScriptError } from "./applescript/runner.js";
+export { discoverProfiles, resolveProfile } from "./applescript/profile.js";
+export type { ChromeProfile, ProfileHint } from "./applescript/profile.js";
 
 export * from "./sync/manifest.js";
 export * from "./sync/plan.js";
