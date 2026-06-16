@@ -3,13 +3,17 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 
 import {
-  buildNotebookSources,
-  createNotebookPodcast,
+  addNotebookSource,
+  createEmptyNotebook,
   createSeededSession,
   createSeededSessionViaApplescript,
   doctor,
   doctorApplescript,
+  generateNotebookPodcast,
+  listNotebookSources,
   listProjects,
+  removeNotebookSource,
+  renameNotebook,
   runSync,
 } from "@aichatctl/sdk";
 import type { Platform } from "@aichatctl/sdk";
@@ -41,13 +45,30 @@ const sessionCreateShape = {
   transport: transportSchema.default("cdp"),
   port: portSchema,
 } as const;
-const notebookCreateShape = {
-  files: z.array(z.string().min(1)).default([]),
-  urls: z.array(z.string().min(1)).default([]),
-  text: z.string().min(1).optional(),
-  format: formatSchema,
+const notebookNewShape = {
+  name: z.string().min(1).optional(),
+} as const;
+const notebookRenameShape = {
+  notebook: z.string().min(1),
+  name: z.string().min(1),
+} as const;
+const notebookSourcesShape = {
+  notebook: z.string().min(1),
+} as const;
+const notebookPodcastShape = {
+  notebook: z.string().min(1),
+  type: formatSchema,
   length: lengthSchema,
   prompt: z.string().min(1).optional(),
+} as const;
+const notebookSourceAddShape = {
+  notebook: z.string().min(1),
+  kind: z.enum(["text", "url"]),
+  content: z.string().min(1),
+} as const;
+const notebookSourceRemoveShape = {
+  notebook: z.string().min(1),
+  source: z.string().min(1),
 } as const;
 
 function ok(data: unknown): CallToolResult {
@@ -154,30 +175,107 @@ export function createServer(): McpServer {
   );
 
   server.registerTool(
-    "aichat_notebook_create",
+    "aichat_notebook_new",
     {
       description:
-        "Create a NotebookLM notebook from local files and/or URLs and kick off an Audio Overview " +
-        "(podcast). Each file becomes a text source; each URL its own source. Returns the notebook URL " +
-        "once generation starts (the audio renders in the background). macOS only (uses AppleScript).",
-      inputSchema: notebookCreateShape,
+        "Create an empty NotebookLM notebook, optionally naming it. Returns the notebook id, " +
+        "URL, and name. macOS only (uses AppleScript).",
+      inputSchema: notebookNewShape,
     },
-    async ({ files, urls, text, format, length, prompt }) => {
+    async ({ name }) => {
       try {
-        const sources = buildNotebookSources({
-          files,
-          urls,
-          ...(text !== undefined ? { text } : {}),
+        return ok(await createEmptyNotebook({ ...(name !== undefined ? { name } : {}) }));
+      } catch (error) {
+        return fail(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "aichat_notebook_rename",
+    {
+      description: "Rename an existing NotebookLM notebook. macOS only (uses AppleScript).",
+      inputSchema: notebookRenameShape,
+    },
+    async ({ notebook, name }) => {
+      try {
+        await renameNotebook({ notebook, name });
+        return ok({ notebook, name, renamed: true });
+      } catch (error) {
+        return fail(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "aichat_notebook_sources",
+    {
+      description:
+        "List the display names of sources currently in a NotebookLM notebook. " +
+        "Use this to verify sources were added before generating a podcast. macOS only (uses AppleScript).",
+      inputSchema: notebookSourcesShape,
+    },
+    async ({ notebook }) => {
+      try {
+        return ok(await listNotebookSources({ notebook }));
+      } catch (error) {
+        return fail(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "aichat_notebook_podcast",
+    {
+      description:
+        "Generate an Audio Overview (podcast) on an existing NotebookLM notebook that already " +
+        "has sources. Returns once generation is kicked off (audio renders in the background over minutes). " +
+        "macOS only (uses AppleScript).",
+      inputSchema: notebookPodcastShape,
+    },
+    async ({ notebook, type, length, prompt }) => {
+      try {
+        await generateNotebookPodcast({
+          notebook,
+          audio: { format: type, length, ...(prompt !== undefined ? { prompt } : {}) },
         });
-        if (sources.length === 0) {
-          return fail(new Error("Provide at least one source: files, urls, or text."));
-        }
-        return ok(
-          await createNotebookPodcast({
-            sources,
-            audio: { format, length, ...(prompt !== undefined ? { prompt } : {}) },
-          }),
-        );
+        return ok({ notebook, podcastKicked: true, type, length });
+      } catch (error) {
+        return fail(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "aichat_notebook_source_add",
+    {
+      description:
+        "Add a source to a NotebookLM notebook (text content or a URL). Waits for NotebookLM to " +
+        "auto-generate a title, then returns it. The title is the handle for future source_remove calls. " +
+        "macOS only (uses AppleScript).",
+      inputSchema: notebookSourceAddShape,
+    },
+    async ({ notebook, kind, content }) => {
+      try {
+        return ok(await addNotebookSource({ notebook, kind, content }));
+      } catch (error) {
+        return fail(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "aichat_notebook_source_remove",
+    {
+      description:
+        "Remove a source from a NotebookLM notebook by its display name (or prefix). " +
+        "macOS only (uses AppleScript).",
+      inputSchema: notebookSourceRemoveShape,
+    },
+    async ({ notebook, source }) => {
+      try {
+        await removeNotebookSource({ notebook, source });
+        return ok({ notebook, source, removed: true });
       } catch (error) {
         return fail(error);
       }

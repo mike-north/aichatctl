@@ -89,43 +89,37 @@ describe("run", () => {
     expect(err.join("\n")).toMatch(/AppleScript transport/);
   });
 
-  it("rejects notebook create with no sources", async () => {
+  it("rejects an unknown --type as a usage error for notebook podcast create", async () => {
     const { io, err } = captureIO();
     const code = await run(
-      argv("notebook", "create", "--format", "deep-dive", "--length", "default"),
-      io,
-    );
-    expect(code).toBe(1);
-    expect(err.join("\n")).toMatch(/at least one source/i);
-  });
-
-  it("rejects an unknown --format as a usage error", async () => {
-    const { io, err } = captureIO();
-    const code = await run(
-      argv("notebook", "create", "--source-text", "hi", "--format", "podcast"),
+      argv("notebook", "podcast", "create", "--notebook", "abc123", "--type", "podcast"),
       io,
     );
     expect(code).toBe(1);
     expect(err.join("\n")).toMatch(/deep-dive/);
   });
 
-  it("rejects an unknown --length as a usage error", async () => {
+  it("rejects an unknown --length as a usage error for notebook podcast create", async () => {
     const { io, err } = captureIO();
     const code = await run(
-      argv("notebook", "create", "--source-text", "hi", "--length", "forever"),
+      argv("notebook", "podcast", "create", "--notebook", "abc123", "--length", "forever"),
       io,
     );
     expect(code).toBe(1);
     expect(err.join("\n")).toMatch(/short, default, long/);
   });
 
-  it("rejects a non-applescript transport for notebook create", async () => {
+  it("rejects a non-applescript transport for notebook new", async () => {
     const { io, err } = captureIO();
-    const code = await run(
-      argv("notebook", "create", "--source-text", "hi", "--transport", "cdp"),
-      io,
-    );
+    const code = await run(argv("notebook", "new", "--transport", "cdp"), io);
     expect(code).toBe(1);
     expect(err.join("\n")).toMatch(/AppleScript transport/);
+  });
+
+  it("rejects an invalid notebook ref for notebook sources list", async () => {
+    const { io, err } = captureIO();
+    const code = await run(argv("notebook", "sources", "list", "--notebook", "not valid!"), io);
+    expect(code).toBe(1);
+    expect(err.join("\n")).toMatch(/invalid notebook reference/i);
   });
 });

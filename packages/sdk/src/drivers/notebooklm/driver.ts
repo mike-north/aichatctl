@@ -1,11 +1,28 @@
 import { evalInChromeTab } from "../../applescript/runner.js";
 import { AichatctlError } from "../../errors.js";
+import {
+  scriptClickMenuItem,
+  scriptClickSourceMenu,
+  scriptConfirmDelete,
+  scriptGetLatestSource,
+  scriptGetNotebookName,
+  scriptListSources,
+  scriptRenameNotebook,
+} from "./page-scripts.js";
+import type {
+  GetNameResult,
+  LatestSourceResult,
+  ListSourcesResult,
+  RenameResult,
+  SourceMenuResult,
+} from "./page-scripts.js";
 import { AUDIO_FORMAT_LABEL, AUDIO_LENGTH_LABEL } from "./types.js";
 import type { AudioOverviewOptions } from "./types.js";
 
 const NB_HOST = "notebooklm.google.com";
 const NB_HOME = "https://notebooklm.google.com/";
 const NOTEBOOK_ID = /\/notebook\/([0-9a-f-]+)/i;
+const BARE_UUID = /^[0-9a-f-]+$/i;
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
@@ -23,6 +40,23 @@ export interface Notebook {
  * (it does not implement the chat `Driver` interface).
  */
 export class NotebookLmDriver {
+  /**
+   * Parses a notebook reference (full URL or bare hex-UUID id) into a Notebook.
+   * Throws if the reference doesn't match the expected format.
+   */
+  static parseNotebookRef(ref: string): Notebook {
+    const urlMatch = NOTEBOOK_ID.exec(ref);
+    if (urlMatch?.[1]) {
+      return { id: urlMatch[1], url: `https://${NB_HOST}/notebook/${urlMatch[1]}` };
+    }
+    if (BARE_UUID.test(ref)) {
+      return { id: ref, url: `https://${NB_HOST}/notebook/${ref}` };
+    }
+    throw new AichatctlError(
+      `Invalid notebook reference: "${ref}". Provide a NotebookLM URL or a notebook UUID.`,
+    );
+  }
+
   /** Runs `jsBody` (which must `return` a JSON string) in the matched tab. */
   async #eval(matchUrl: string, createUrl: string, jsBody: string): Promise<unknown> {
     const js = `(function(){try{${jsBody}}catch(e){return JSON.stringify({__error:String((e&&e.message)||e)});}})()`;
@@ -76,13 +110,26 @@ export class NotebookLmDriver {
     throw new AichatctlError("NotebookLM notebook did not open after Create (timed out).");
   }
 
+  /** Ensures the source panel is visible (expands it if collapsed). */
+  async #ensureSourcePanelOpen(nb: Notebook): Promise<void> {
+    await this.#evalNotebook(
+      nb,
+      `
+      var add=document.querySelector('button.add-source-button')||Array.from(document.querySelectorAll('button')).find(function(b){return /add source/i.test(b.innerText||"");});
+      if(!add){var toggle=document.querySelector('button.toggle-source-panel-button')||Array.from(document.querySelectorAll('button')).find(function(b){return /collapse_content|dock_to_right/i.test(b.innerText||"");});if(toggle)toggle.click();}
+      return JSON.stringify({ok:true});`,
+    );
+    await sleep(600);
+  }
+
   /** Opens the Add-source picker if it isn't already showing. */
   async #openSourcePicker(nb: Notebook): Promise<void> {
+    await this.#ensureSourcePanelOpen(nb);
     await this.#evalNotebook(
       nb,
       `
       var hasPicker=Array.from(document.querySelectorAll('button,[role="button"]')).some(function(e){return /copied text/i.test(e.innerText||"");});
-      if(!hasPicker){var add=document.querySelector('button[aria-label^="Add source"]')||Array.from(document.querySelectorAll('button')).find(function(b){return /add source/i.test(b.innerText||"");});if(add)add.click();}
+      if(!hasPicker){var add=document.querySelector('button[aria-label^="Add source"]')||document.querySelector('button.add-source-button')||Array.from(document.querySelectorAll('button')).find(function(b){return /add source/i.test(b.innerText||"");});if(add)add.click();}
       return JSON.stringify({ok:true});`,
     );
     await sleep(900);
@@ -176,6 +223,96 @@ export class NotebookLmDriver {
     if (!filled.ok)
       throw new AichatctlError(`NotebookLM URL paste failed: ${filled.why ?? "unknown"}`);
     await this.#insertAndSettle(nb);
+  }
+
+  /** Reads the current notebook title (empty string if untitled). */
+  public async getNotebookName(nb: Notebook): Promise<string> {
+    const r = (await this.#evalNotebook(nb, scriptGetNotebookName())) as GetNameResult;
+    return r.name;
+  }
+
+  /** Renames a notebook by setting the title input element. */
+  public async renameNotebook(nb: Notebook, name: string): Promise<void> {
+    const result = (await this.#evalNotebook(nb, scriptRenameNotebook(name))) as RenameResult;
+    if (!result.ok) {
+      throw new AichatctlError(
+        `NotebookLM rename failed: ${result.why ?? "unknown"} (calibration).`,
+      );
+    }
+    await sleep(1000);
+  }
+
+  /** Lists the display names of all sources currently in the notebook. */
+  public async listSources(nb: Notebook): Promise<string[]> {
+    const r = (await this.#evalNotebook(nb, scriptListSources())) as ListSourcesResult;
+    return r.sources;
+  }
+
+  /** Removes a source by clicking its three-dot menu → "Remove source" → "Delete". */
+  public async removeSource(nb: Notebook, sourceName: string): Promise<void> {
+    const menu = (await this.#evalNotebook(
+      nb,
+      scriptClickSourceMenu(sourceName),
+    )) as SourceMenuResult;
+    if (!menu.ok) {
+      throw new AichatctlError(
+        `NotebookLM remove source failed: ${menu.why ?? "unknown"} (calibration).`,
+      );
+    }
+    await sleep(500);
+    const click = (await this.#evalNotebook(
+      nb,
+      scriptClickMenuItem("Remove source"),
+    )) as SourceMenuResult;
+    if (!click.ok) {
+      throw new AichatctlError(`NotebookLM "Remove source" menu item not found (calibration).`);
+    }
+    await sleep(800);
+    const confirm = (await this.#evalNotebook(nb, scriptConfirmDelete())) as SourceMenuResult;
+    if (!confirm.ok) {
+      throw new AichatctlError(
+        `NotebookLM delete confirmation failed: ${confirm.why ?? "unknown"} (calibration).`,
+      );
+    }
+    await sleep(1000);
+  }
+
+  /**
+   * Adds a text source and waits for NotebookLM to assign it a generated title.
+   * Returns the auto-generated title (the stable handle for `removeSource`).
+   */
+  public async addTextSourceAndAwaitTitle(
+    nb: Notebook,
+    content: string,
+    timeoutMs = 15_000,
+  ): Promise<string> {
+    await this.addTextSource(nb, content);
+    return this.#awaitSourceTitle(nb, timeoutMs);
+  }
+
+  /**
+   * Adds a URL source and waits for NotebookLM to assign it a generated title.
+   * Returns the auto-generated title (the stable handle for `removeSource`).
+   */
+  public async addUrlSourceAndAwaitTitle(
+    nb: Notebook,
+    url: string,
+    timeoutMs = 15_000,
+  ): Promise<string> {
+    await this.addUrlSource(nb, url);
+    return this.#awaitSourceTitle(nb, timeoutMs);
+  }
+
+  async #awaitSourceTitle(nb: Notebook, timeoutMs: number): Promise<string> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      await sleep(1500);
+      const r = (await this.#evalNotebook(nb, scriptGetLatestSource())) as LatestSourceResult;
+      if (r.settled) return r.latestTitle;
+    }
+    const final = (await this.#evalNotebook(nb, scriptGetLatestSource())) as LatestSourceResult;
+    if (final.latestTitle.length > 0) return final.latestTitle;
+    throw new AichatctlError("Source was added but its title did not settle within the timeout.");
   }
 
   /**

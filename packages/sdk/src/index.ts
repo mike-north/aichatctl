@@ -39,8 +39,6 @@ export type {
   AudioOverviewOptions,
   NotebookSource,
 } from "./drivers/notebooklm/types.js";
-export { buildNotebookSources } from "./drivers/notebooklm/sources.js";
-export type { BuildSourcesInput } from "./drivers/notebooklm/sources.js";
 export { evalInChromeTab, runAppleScript, AppleScriptError } from "./applescript/runner.js";
 
 export * from "./sync/manifest.js";
