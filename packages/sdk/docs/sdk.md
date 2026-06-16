@@ -161,12 +161,12 @@ Description
 </th></tr></thead>
 <tbody><tr><td>
 
-[buildNotebookSources(input)](./sdk.buildnotebooksources.md)
+[addNotebookSource(options)](./sdk.addnotebooksource.md)
 
 
 </td><td>
 
-Builds the ordered source list: files (glob order) → inline text → URLs (input order). Each file becomes a titled text source (title = basename); inline text an untitled text source; each URL its own url source.
+Adds a source to a notebook and waits for NotebookLM to auto-generate its title. Returns the title (the handle for future `removeNotebookSource` calls). AppleScript transport only (macOS).
 
 
 </td></tr>
@@ -222,12 +222,12 @@ Constructs the driver for a platform, bound to a browser session.
 </td></tr>
 <tr><td>
 
-[createNotebookPodcast(options)](./sdk.createnotebookpodcast.md)
+[createEmptyNotebook(options)](./sdk.createemptynotebook.md)
 
 
 </td><td>
 
-Creates a NotebookLM notebook, adds the given sources (one insert each — URLs become distinct document sources), and kicks off an Audio Overview. Returns once generation is kicked off; it does not wait for the (minutes-long) render. AppleScript transport only (NotebookLM is a Google product; macOS-only).
+Creates an empty NotebookLM notebook, optionally naming it. AppleScript transport only (macOS).
 
 
 </td></tr>
@@ -261,6 +261,19 @@ Creates a seeded session by driving the user's real Chrome with no extension, vi
 </td><td>
 
 Default location of the sync-state file within a project base directory.
+
+
+</td></tr>
+<tr><td>
+
+[discoverProfiles()](./sdk.discoverprofiles.md)
+
+
+</td><td>
+
+Discovers all Chrome profiles that currently have open windows.
+
+Reads Chrome's `Local State` for profile metadata (no tabs opened). Then maps each open window to its profile by opening a temporary `chrome://version` tab — but deduplicates: once all known profiles have been seen, remaining windows are assigned to the profile that already claimed the most windows (avoids flashing tabs in every window of a multi-window profile).
 
 
 </td></tr>
@@ -305,6 +318,17 @@ Executes `jsCode` in the matching Chrome tab and returns its string result.
 </td><td>
 
 Resolves the path to an installed Google Chrome executable, or undefined.
+
+
+</td></tr>
+<tr><td>
+
+[generateNotebookPodcast(options)](./sdk.generatenotebookpodcast.md)
+
+
+</td><td>
+
+Generates an Audio Overview (podcast) on an existing notebook that already has sources. Returns once generation is kicked off (the audio renders in the background over minutes). AppleScript transport only (macOS).
 
 
 </td></tr>
@@ -364,6 +388,17 @@ Probes whether a CDP endpoint is reachable on the given port.
 Launches the user's installed Google Chrome with remote debugging enabled, using a dedicated automation profile so it does not collide with everyday browsing and is permitted to expose the debugging port.
 
 The process is detached so it outlives the calling CLI invocation.
+
+
+</td></tr>
+<tr><td>
+
+[listNotebookSources(options)](./sdk.listnotebooksources.md)
+
+
+</td><td>
+
+Lists the display names of sources in a notebook. AppleScript transport only (macOS).
 
 
 </td></tr>
@@ -468,12 +503,45 @@ Reads a prompt from a file, or from stdin when path is "-".
 </td></tr>
 <tr><td>
 
+[removeNotebookSource(options)](./sdk.removenotebooksource.md)
+
+
+</td><td>
+
+Removes a source from a notebook by its display name. AppleScript transport only (macOS).
+
+
+</td></tr>
+<tr><td>
+
+[renameNotebook(options)](./sdk.renamenotebook.md)
+
+
+</td><td>
+
+Renames an existing NotebookLM notebook. AppleScript transport only (macOS).
+
+
+</td></tr>
+<tr><td>
+
 [resolveDesiredFiles(globs, baseDir)](./sdk.resolvedesiredfiles.md)
 
 
 </td><td>
 
 Expands manifest globs (relative to `baseDir`<!-- -->) into a deduplicated, hashed list of files. The remote name is the file's basename; basename collisions across different paths are a configuration error.
+
+
+</td></tr>
+<tr><td>
+
+[resolveProfile(hint)](./sdk.resolveprofile.md)
+
+
+</td><td>
+
+Resolves a profile hint to exactly one Chrome profile. Throws with an actionable error if zero or multiple profiles match.
 
 
 </td></tr>
@@ -540,6 +608,28 @@ Description
 </th></tr></thead>
 <tbody><tr><td>
 
+[AddSourceOptions](./sdk.addsourceoptions.md)
+
+
+</td><td>
+
+Options for [addNotebookSource()](./sdk.addnotebooksource.md)<!-- -->.
+
+
+</td></tr>
+<tr><td>
+
+[AddSourceResult](./sdk.addsourceresult.md)
+
+
+</td><td>
+
+Result of [addNotebookSource()](./sdk.addnotebooksource.md)<!-- -->.
+
+
+</td></tr>
+<tr><td>
+
 [ApplescriptDoctorReport](./sdk.applescriptdoctorreport.md)
 
 
@@ -573,12 +663,12 @@ Options for generating an Audio Overview.
 </td></tr>
 <tr><td>
 
-[BuildSourcesInput](./sdk.buildsourcesinput.md)
+[ChromeProfile](./sdk.chromeprofile.md)
 
 
 </td><td>
 
-Raw inputs for [buildNotebookSources()](./sdk.buildnotebooksources.md)<!-- -->.
+A discovered Chrome profile with its associated window IDs.
 
 
 </td></tr>
@@ -606,12 +696,12 @@ Options for attaching to a running Chrome over CDP.
 </td></tr>
 <tr><td>
 
-[CreateNotebookPodcastOptions](./sdk.createnotebookpodcastoptions.md)
+[CreateNotebookOptions](./sdk.createnotebookoptions.md)
 
 
 </td><td>
 
-Options for [createNotebookPodcast()](./sdk.createnotebookpodcast.md)<!-- -->.
+Options for [createEmptyNotebook()](./sdk.createemptynotebook.md)<!-- -->.
 
 
 </td></tr>
@@ -672,6 +762,17 @@ Platform driver: all deterministic, DOM-level mechanics for one web AI chat plat
 </td></tr>
 <tr><td>
 
+[GeneratePodcastOptions](./sdk.generatepodcastoptions.md)
+
+
+</td><td>
+
+Options for [generateNotebookPodcast()](./sdk.generatenotebookpodcast.md)<!-- -->.
+
+
+</td></tr>
+<tr><td>
+
 [InstructionsPlan](./sdk.instructionsplan.md)
 
 
@@ -716,6 +817,17 @@ Options for [listProjects()](./sdk.listprojects.md)<!-- -->.
 </td></tr>
 <tr><td>
 
+[ListSourcesOptions](./sdk.listsourcesoptions.md)
+
+
+</td><td>
+
+Options for [listNotebookSources()](./sdk.listnotebooksources.md)<!-- -->.
+
+
+</td></tr>
+<tr><td>
+
 [LoadedManifest](./sdk.loadedmanifest.md)
 
 
@@ -749,12 +861,23 @@ A NotebookLM notebook resolved from the URL after creation.
 </td></tr>
 <tr><td>
 
-[NotebookPodcastResult](./sdk.notebookpodcastresult.md)
+[NotebookResult](./sdk.notebookresult.md)
 
 
 </td><td>
 
-Result of [createNotebookPodcast()](./sdk.createnotebookpodcast.md)<!-- -->.
+Result of [createEmptyNotebook()](./sdk.createemptynotebook.md)<!-- -->.
+
+
+</td></tr>
+<tr><td>
+
+[NotebookSourcesResult](./sdk.notebooksourcesresult.md)
+
+
+</td><td>
+
+Result of [listNotebookSources()](./sdk.listnotebooksources.md)<!-- -->.
 
 
 </td></tr>
@@ -766,6 +889,17 @@ Result of [createNotebookPodcast()](./sdk.createnotebookpodcast.md)<!-- -->.
 </td><td>
 
 Inputs to [computePlan()](./sdk.computeplan.md)<!-- -->.
+
+
+</td></tr>
+<tr><td>
+
+[ProfileHint](./sdk.profilehint.md)
+
+
+</td><td>
+
+A user-provided hint for selecting a Chrome profile.
 
 
 </td></tr>
@@ -801,6 +935,28 @@ Identifies a project either by its display name or by URL/id.
 A file currently present in a project's file library, as observed in the UI.
 
 Only metadata is available — the web UIs expose no way to read a file's uploaded content back, which is why drift is tracked via local hashes.
+
+
+</td></tr>
+<tr><td>
+
+[RemoveSourceOptions](./sdk.removesourceoptions.md)
+
+
+</td><td>
+
+Options for [removeNotebookSource()](./sdk.removenotebooksource.md)<!-- -->.
+
+
+</td></tr>
+<tr><td>
+
+[RenameNotebookOptions](./sdk.renamenotebookoptions.md)
+
+
+</td><td>
+
+Options for [renameNotebook()](./sdk.renamenotebook.md)<!-- -->.
 
 
 </td></tr>

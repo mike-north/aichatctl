@@ -10,6 +10,24 @@ import type { Page } from 'playwright-core';
 import { z } from 'zod';
 
 // @public
+export function addNotebookSource(options: AddSourceOptions): Promise<AddSourceResult>;
+
+// @public
+export interface AddSourceOptions {
+    readonly content: string;
+    readonly kind: "text" | "url";
+    readonly notebook: string;
+    readonly profile?: ProfileHint;
+    readonly skipLoginCheck?: boolean;
+}
+
+// @public
+export interface AddSourceResult {
+    // (undocumented)
+    readonly title: string;
+}
+
+// @public
 export class AichatctlError extends Error {
     // (undocumented)
     readonly name: string;
@@ -107,13 +125,15 @@ export class BrowserSession {
 }
 
 // @public
-export function buildNotebookSources(input: BuildSourcesInput): NotebookSource[];
-
-// @public
-export interface BuildSourcesInput {
-    readonly files?: readonly string[];
-    readonly text?: string;
-    readonly urls?: readonly string[];
+export interface ChromeProfile {
+    // (undocumented)
+    readonly email?: string;
+    // (undocumented)
+    readonly name: string;
+    // (undocumented)
+    readonly path: string;
+    // (undocumented)
+    readonly windowIds: readonly string[];
 }
 
 // @public
@@ -147,13 +167,13 @@ export interface ConnectOptions {
 export function createDriver(platform: Platform, session: BrowserSession): Driver;
 
 // @public
-export function createNotebookPodcast(options: CreateNotebookPodcastOptions): Promise<NotebookPodcastResult>;
+export function createEmptyNotebook(options: CreateNotebookOptions): Promise<NotebookResult>;
 
 // @public
-export interface CreateNotebookPodcastOptions {
-    readonly audio: AudioOverviewOptions;
+export interface CreateNotebookOptions {
+    readonly name?: string;
+    readonly profile?: ProfileHint;
     readonly skipLoginCheck?: boolean;
-    readonly sources: readonly NotebookSource[];
 }
 
 // @public
@@ -180,6 +200,9 @@ export interface DesiredFile {
     // (undocumented)
     readonly name: string;
 }
+
+// @public
+export function discoverProfiles(): Promise<ChromeProfile[]>;
 
 // @public
 export function doctor(options?: DoctorOptions): Promise<DoctorReport>;
@@ -230,6 +253,17 @@ export function evalInChromeTab(jsCode: string, options: EvalOptions): Promise<s
 export function findChromeExecutable(): string | undefined;
 
 // @public
+export function generateNotebookPodcast(options: GeneratePodcastOptions): Promise<void>;
+
+// @public
+export interface GeneratePodcastOptions {
+    readonly audio: AudioOverviewOptions;
+    readonly notebook: string;
+    readonly profile?: ProfileHint;
+    readonly skipLoginCheck?: boolean;
+}
+
+// @public
 export function getVersion(): string;
 
 // @public
@@ -269,12 +303,22 @@ export interface LaunchChromeResult {
 }
 
 // @public
+export function listNotebookSources(options: ListSourcesOptions): Promise<NotebookSourcesResult>;
+
+// @public
 export function listProjects(options: ListProjectsOptions): Promise<Project[]>;
 
 // @public
 export interface ListProjectsOptions extends ConnectionOptions {
     // (undocumented)
     readonly platform: Platform;
+}
+
+// @public
+export interface ListSourcesOptions {
+    readonly notebook: string;
+    readonly profile?: ProfileHint;
+    readonly skipLoginCheck?: boolean;
 }
 
 // @public
@@ -312,22 +356,28 @@ export interface Notebook {
 
 // @public
 export class NotebookLmDriver {
+    constructor(windowIds?: readonly string[]);
     addTextSource(nb: Notebook, content: string): Promise<void>;
+    addTextSourceAndAwaitTitle(nb: Notebook, content: string, timeoutMs?: number): Promise<string>;
     addUrlSource(nb: Notebook, url: string): Promise<void>;
+    addUrlSourceAndAwaitTitle(nb: Notebook, url: string, timeoutMs?: number): Promise<string>;
     createNotebook(): Promise<Notebook>;
     generateAudioOverview(nb: Notebook, opts: AudioOverviewOptions): Promise<void>;
+    getNotebookName(nb: Notebook): Promise<string>;
     // (undocumented)
     isLoggedIn(): Promise<boolean>;
+    listSources(nb: Notebook): Promise<string[]>;
+    static parseNotebookRef(ref: string): Notebook;
+    removeSource(nb: Notebook, sourceName: string): Promise<void>;
+    renameNotebook(nb: Notebook, name: string): Promise<void>;
 }
 
 // @public
-export interface NotebookPodcastResult {
+export interface NotebookResult {
     // (undocumented)
-    readonly notebookId: string;
+    readonly id: string;
     // (undocumented)
-    readonly podcastKicked: boolean;
-    // (undocumented)
-    readonly sourcesAdded: number;
+    readonly name: string;
     // (undocumented)
     readonly url: string;
 }
@@ -341,6 +391,14 @@ export type NotebookSource = {
     readonly kind: "url";
     readonly url: string;
 };
+
+// @public
+export interface NotebookSourcesResult {
+    // (undocumented)
+    readonly notebook: Notebook;
+    // (undocumented)
+    readonly sources: string[];
+}
 
 // @public
 export class NotLoggedInError extends AichatctlError {
@@ -382,6 +440,14 @@ export type PlatformManifest = z.infer<typeof platformManifestSchema>;
 export const PLATFORMS: readonly Platform[];
 
 // @public
+export interface ProfileHint {
+    // (undocumented)
+    readonly account?: string;
+    // (undocumented)
+    readonly name?: string;
+}
+
+// @public
 export interface Project {
     readonly id: string;
     readonly name: string;
@@ -415,12 +481,37 @@ export interface RemoteFile {
 }
 
 // @public
+export function removeNotebookSource(options: RemoveSourceOptions): Promise<void>;
+
+// @public
+export interface RemoveSourceOptions {
+    readonly notebook: string;
+    readonly profile?: ProfileHint;
+    readonly skipLoginCheck?: boolean;
+    readonly source: string;
+}
+
+// @public
+export function renameNotebook(options: RenameNotebookOptions): Promise<void>;
+
+// @public
+export interface RenameNotebookOptions {
+    readonly name: string;
+    readonly notebook: string;
+    readonly profile?: ProfileHint;
+    readonly skipLoginCheck?: boolean;
+}
+
+// @public
 export function resolveDesiredFiles(globs: readonly string[], baseDir: string): ResolvedFile[];
 
 // @public
 export interface ResolvedFile extends DesiredFile {
     readonly localPath: string;
 }
+
+// @public
+export function resolveProfile(hint: ProfileHint): Promise<ChromeProfile>;
 
 // @public
 export function runAppleScript(script: string, timeoutMs?: number): Promise<string>;
