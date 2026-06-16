@@ -10,6 +10,7 @@ export default tseslint.config(
       "**/temp/**",
       "**/coverage/**",
       "**/node_modules/**",
+      ".claude/worktrees/**",
       "plugins/**",
       "packages/sdk/docs/**",
       "packages/sdk/api-report/**",

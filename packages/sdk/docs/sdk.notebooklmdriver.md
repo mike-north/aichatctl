@@ -12,6 +12,40 @@ Drives the user's real, logged-in Chrome to create a NotebookLM notebook, add so
 export declare class NotebookLmDriver 
 ```
 
+## Constructors
+
+<table><thead><tr><th>
+
+Constructor
+
+
+</th><th>
+
+Modifiers
+
+
+</th><th>
+
+Description
+
+
+</th></tr></thead>
+<tbody><tr><td>
+
+[(constructor)(windowIds)](./sdk.notebooklmdriver._constructor_.md)
+
+
+</td><td>
+
+
+</td><td>
+
+Constructs a new instance of the `NotebookLmDriver` class
+
+
+</td></tr>
+</tbody></table>
+
 ## Methods
 
 <table><thead><tr><th>
@@ -46,6 +80,20 @@ Adds one "Copied text" source.
 </td></tr>
 <tr><td>
 
+[addTextSourceAndAwaitTitle(nb, content, timeoutMs)](./sdk.notebooklmdriver.addtextsourceandawaittitle.md)
+
+
+</td><td>
+
+
+</td><td>
+
+Adds a text source and waits for NotebookLM to assign it a generated title. Returns the auto-generated title (the stable handle for `removeSource`<!-- -->).
+
+
+</td></tr>
+<tr><td>
+
 [addUrlSource(nb, url)](./sdk.notebooklmdriver.addurlsource.md)
 
 
@@ -55,6 +103,20 @@ Adds one "Copied text" source.
 </td><td>
 
 Adds one "Websites" source (a single URL → one distinct document source).
+
+
+</td></tr>
+<tr><td>
+
+[addUrlSourceAndAwaitTitle(nb, url, timeoutMs)](./sdk.notebooklmdriver.addurlsourceandawaittitle.md)
+
+
+</td><td>
+
+
+</td><td>
+
+Adds a URL source and waits for NotebookLM to assign it a generated title. Returns the auto-generated title (the stable handle for `removeSource`<!-- -->).
 
 
 </td></tr>
@@ -88,6 +150,20 @@ Opens "Customize Audio Overview", sets format/length/prompt, and clicks Generate
 </td></tr>
 <tr><td>
 
+[getNotebookName(nb)](./sdk.notebooklmdriver.getnotebookname.md)
+
+
+</td><td>
+
+
+</td><td>
+
+Reads the current notebook title (empty string if untitled).
+
+
+</td></tr>
+<tr><td>
+
 [isLoggedIn()](./sdk.notebooklmdriver.isloggedin.md)
 
 
@@ -95,6 +171,64 @@ Opens "Customize Audio Overview", sets format/length/prompt, and clicks Generate
 
 
 </td><td>
+
+
+</td></tr>
+<tr><td>
+
+[listSources(nb)](./sdk.notebooklmdriver.listsources.md)
+
+
+</td><td>
+
+
+</td><td>
+
+Lists the display names of all sources currently in the notebook.
+
+
+</td></tr>
+<tr><td>
+
+[parseNotebookRef(ref)](./sdk.notebooklmdriver.parsenotebookref.md)
+
+
+</td><td>
+
+`static`
+
+
+</td><td>
+
+Parses a notebook reference (full URL or bare hex-UUID id) into a Notebook. Throws if the reference doesn't match the expected format.
+
+
+</td></tr>
+<tr><td>
+
+[removeSource(nb, sourceName)](./sdk.notebooklmdriver.removesource.md)
+
+
+</td><td>
+
+
+</td><td>
+
+Removes a source by clicking its three-dot menu → "Remove source" → "Delete".
+
+
+</td></tr>
+<tr><td>
+
+[renameNotebook(nb, name)](./sdk.notebooklmdriver.renamenotebook.md)
+
+
+</td><td>
+
+
+</td><td>
+
+Renames a notebook by setting the title input element.
 
 
 </td></tr>

@@ -1,12 +1,15 @@
 import { readFileSync } from "node:fs";
 
+import { resolveProfile } from "./applescript/profile.js";
+import type { ProfileHint } from "./applescript/profile.js";
 import { BrowserSession } from "./browser/session.js";
 import { DEFAULT_CDP_PORT } from "./config.js";
 import { AppleScriptDriver } from "./drivers/applescript/driver.js";
 import { createDriver } from "./drivers/factory.js";
 import type { Driver } from "./drivers/driver.js";
 import { NotebookLmDriver } from "./drivers/notebooklm/driver.js";
-import type { AudioOverviewOptions, NotebookSource } from "./drivers/notebooklm/types.js";
+import type { Notebook } from "./drivers/notebooklm/driver.js";
+import type { AudioOverviewOptions } from "./drivers/notebooklm/types.js";
 import { AichatctlError, NotLoggedInError } from "./errors.js";
 import { loadManifest, manifestForPlatform } from "./sync/manifest.js";
 import { syncPlatform } from "./sync/sync.js";
@@ -201,62 +204,192 @@ export async function runSync(options: RunSyncOptions): Promise<SyncReport[]> {
   }
 }
 
-/** Options for {@link createNotebookPodcast}. */
-export interface CreateNotebookPodcastOptions {
-  /** Ordered, normalized source list (build with `buildNotebookSources`). */
-  readonly sources: readonly NotebookSource[];
-  /** Audio Overview format/length/prompt. */
-  readonly audio: AudioOverviewOptions;
+async function resolveWindowIds(
+  profile: ProfileHint | undefined,
+): Promise<readonly string[] | undefined> {
+  if (profile === undefined) return undefined;
+  const resolved = await resolveProfile(profile);
+  return resolved.windowIds;
+}
+
+/** Options for {@link createEmptyNotebook}. */
+export interface CreateNotebookOptions {
+  /** Name to give the notebook (omit to leave untitled). */
+  readonly name?: string;
+  /** Target a specific Chrome profile by account email or display name. */
+  readonly profile?: ProfileHint;
   /** Skip the logged-in precondition check. */
   readonly skipLoginCheck?: boolean;
 }
 
-/** Result of {@link createNotebookPodcast}. */
-export interface NotebookPodcastResult {
+/** Result of {@link createEmptyNotebook}. */
+export interface NotebookResult {
+  readonly id: string;
   readonly url: string;
-  readonly notebookId: string;
-  readonly sourcesAdded: number;
-  readonly podcastKicked: boolean;
+  readonly name: string;
 }
 
 /**
- * Creates a NotebookLM notebook, adds the given sources (one insert each — URLs
- * become distinct document sources), and kicks off an Audio Overview. Returns
- * once generation is kicked off; it does not wait for the (minutes-long) render.
- * AppleScript transport only (NotebookLM is a Google product; macOS-only).
+ * Creates an empty NotebookLM notebook, optionally naming it.
+ * AppleScript transport only (macOS).
  */
-export async function createNotebookPodcast(
-  options: CreateNotebookPodcastOptions,
-): Promise<NotebookPodcastResult> {
-  if (options.sources.length === 0) {
-    throw new AichatctlError(
-      "Provide at least one source: --source, --source-url, or --source-text.",
-    );
-  }
-  const driver = new NotebookLmDriver();
+export async function createEmptyNotebook(options: CreateNotebookOptions): Promise<NotebookResult> {
+  const windowIds = await resolveWindowIds(options.profile);
+  const driver = new NotebookLmDriver(windowIds);
   if (options.skipLoginCheck !== true && !(await driver.isLoggedIn())) {
     throw new NotLoggedInError("notebooklm");
   }
   const notebook = await driver.createNotebook();
-  let sourcesAdded = 0;
-  for (const [index, source] of options.sources.entries()) {
-    const label = source.kind === "url" ? source.url : (source.title ?? "inline text");
-    try {
-      if (source.kind === "text") {
-        const body =
-          source.title !== undefined ? `# ${source.title}\n\n${source.content}` : source.content;
-        await driver.addTextSource(notebook, body);
-      } else {
-        await driver.addUrlSource(notebook, source.url);
-      }
-    } catch (error) {
-      const detail = error instanceof Error ? error.message : String(error);
-      throw new AichatctlError(
-        `Failed to add source ${String(index + 1)}/${String(options.sources.length)} (${label}): ${detail}`,
-      );
-    }
-    sourcesAdded += 1;
+  if (options.name !== undefined && options.name.trim().length > 0) {
+    await driver.renameNotebook(notebook, options.name);
   }
-  await driver.generateAudioOverview(notebook, options.audio);
-  return { url: notebook.url, notebookId: notebook.id, sourcesAdded, podcastKicked: true };
+  const name = await driver.getNotebookName(notebook);
+  return { id: notebook.id, url: notebook.url, name };
+}
+
+/** Options for {@link renameNotebook}. */
+export interface RenameNotebookOptions {
+  /** Notebook URL or UUID. */
+  readonly notebook: string;
+  /** New name for the notebook. */
+  readonly name: string;
+  /** Target a specific Chrome profile. */
+  readonly profile?: ProfileHint;
+  /** Skip the logged-in precondition check. */
+  readonly skipLoginCheck?: boolean;
+}
+
+/** Renames an existing NotebookLM notebook. AppleScript transport only (macOS). */
+export async function renameNotebook(options: RenameNotebookOptions): Promise<void> {
+  if (options.name.trim().length === 0) {
+    throw new AichatctlError("Provide a non-empty --name.");
+  }
+  const nb = NotebookLmDriver.parseNotebookRef(options.notebook);
+  const windowIds = await resolveWindowIds(options.profile);
+  const driver = new NotebookLmDriver(windowIds);
+  if (options.skipLoginCheck !== true && !(await driver.isLoggedIn())) {
+    throw new NotLoggedInError("notebooklm");
+  }
+  await driver.renameNotebook(nb, options.name);
+}
+
+/** Options for {@link listNotebookSources}. */
+export interface ListSourcesOptions {
+  /** Notebook URL or UUID. */
+  readonly notebook: string;
+  /** Target a specific Chrome profile. */
+  readonly profile?: ProfileHint;
+  /** Skip the logged-in precondition check. */
+  readonly skipLoginCheck?: boolean;
+}
+
+/** Result of {@link listNotebookSources}. */
+export interface NotebookSourcesResult {
+  readonly notebook: Notebook;
+  readonly sources: string[];
+}
+
+/** Lists the display names of sources in a notebook. AppleScript transport only (macOS). */
+export async function listNotebookSources(
+  options: ListSourcesOptions,
+): Promise<NotebookSourcesResult> {
+  const nb = NotebookLmDriver.parseNotebookRef(options.notebook);
+  const windowIds = await resolveWindowIds(options.profile);
+  const driver = new NotebookLmDriver(windowIds);
+  if (options.skipLoginCheck !== true && !(await driver.isLoggedIn())) {
+    throw new NotLoggedInError("notebooklm");
+  }
+  const sources = await driver.listSources(nb);
+  return { notebook: nb, sources };
+}
+
+/** Options for {@link generateNotebookPodcast}. */
+export interface GeneratePodcastOptions {
+  /** Notebook URL or UUID. */
+  readonly notebook: string;
+  /** Audio Overview type/length/prompt. */
+  readonly audio: AudioOverviewOptions;
+  /** Target a specific Chrome profile. */
+  readonly profile?: ProfileHint;
+  /** Skip the logged-in precondition check. */
+  readonly skipLoginCheck?: boolean;
+}
+
+/**
+ * Generates an Audio Overview (podcast) on an existing notebook that already
+ * has sources. Returns once generation is kicked off (the audio renders in the
+ * background over minutes). AppleScript transport only (macOS).
+ */
+export async function generateNotebookPodcast(options: GeneratePodcastOptions): Promise<void> {
+  const nb = NotebookLmDriver.parseNotebookRef(options.notebook);
+  const windowIds = await resolveWindowIds(options.profile);
+  const driver = new NotebookLmDriver(windowIds);
+  if (options.skipLoginCheck !== true && !(await driver.isLoggedIn())) {
+    throw new NotLoggedInError("notebooklm");
+  }
+  await driver.generateAudioOverview(nb, options.audio);
+}
+
+/** Options for {@link removeNotebookSource}. */
+export interface RemoveSourceOptions {
+  /** Notebook URL or UUID. */
+  readonly notebook: string;
+  /** Display name (or prefix) of the source to remove. */
+  readonly source: string;
+  /** Target a specific Chrome profile. */
+  readonly profile?: ProfileHint;
+  /** Skip the logged-in precondition check. */
+  readonly skipLoginCheck?: boolean;
+}
+
+/** Removes a source from a notebook by its display name. AppleScript transport only (macOS). */
+export async function removeNotebookSource(options: RemoveSourceOptions): Promise<void> {
+  const nb = NotebookLmDriver.parseNotebookRef(options.notebook);
+  const windowIds = await resolveWindowIds(options.profile);
+  const driver = new NotebookLmDriver(windowIds);
+  if (options.skipLoginCheck !== true && !(await driver.isLoggedIn())) {
+    throw new NotLoggedInError("notebooklm");
+  }
+  await driver.removeSource(nb, options.source);
+}
+
+/** Options for {@link addNotebookSource}. */
+export interface AddSourceOptions {
+  /** Notebook URL or UUID. */
+  readonly notebook: string;
+  /** Source type: "text" (pasted content) or "url" (website link). */
+  readonly kind: "text" | "url";
+  /** The content (for kind=text) or URL (for kind=url) to add. */
+  readonly content: string;
+  /** Target a specific Chrome profile. */
+  readonly profile?: ProfileHint;
+  /** Skip the logged-in precondition check. */
+  readonly skipLoginCheck?: boolean;
+}
+
+/** Result of {@link addNotebookSource}. */
+export interface AddSourceResult {
+  readonly title: string;
+}
+
+/**
+ * Adds a source to a notebook and waits for NotebookLM to auto-generate its
+ * title. Returns the title (the handle for future `removeNotebookSource` calls).
+ * AppleScript transport only (macOS).
+ */
+export async function addNotebookSource(options: AddSourceOptions): Promise<AddSourceResult> {
+  if (options.content.trim().length === 0) {
+    throw new AichatctlError("Provide non-empty content for the source.");
+  }
+  const nb = NotebookLmDriver.parseNotebookRef(options.notebook);
+  const windowIds = await resolveWindowIds(options.profile);
+  const driver = new NotebookLmDriver(windowIds);
+  if (options.skipLoginCheck !== true && !(await driver.isLoggedIn())) {
+    throw new NotLoggedInError("notebooklm");
+  }
+  const title =
+    options.kind === "url"
+      ? await driver.addUrlSourceAndAwaitTitle(nb, options.content)
+      : await driver.addTextSourceAndAwaitTitle(nb, options.content);
+  return { title };
 }
