@@ -14,6 +14,20 @@ export class AppleScriptError extends AichatctlError {
 }
 
 /**
+ * The AppleScript transport drives Chrome via `osascript`, which only exists on
+ * macOS. Fail fast with a clear message rather than a low-level `spawn osascript
+ * ENOENT` when invoked elsewhere (e.g. from the CLI/MCP on Linux/Windows).
+ */
+function assertMacOS(): void {
+  if (process.platform !== "darwin") {
+    throw new AppleScriptError(
+      "The AppleScript transport requires macOS (it uses osascript). " +
+        "On other platforms, use the CDP transport.",
+    );
+  }
+}
+
+/**
  * AppleScript runner: finds (or creates) a Chrome tab matching `matchUrl`, waits
  * for it to finish loading, executes `jsCode` in it, and returns the result.
  *
@@ -64,6 +78,7 @@ export interface EvalOptions {
 
 /** Executes `jsCode` in the matching Chrome tab and returns its string result. */
 export async function evalInChromeTab(jsCode: string, options: EvalOptions): Promise<string> {
+  assertMacOS();
   const dir = mkdtempSync(join(tmpdir(), "aichatctl-as-"));
   const jsPath = join(dir, "code.js");
   const scptPath = join(dir, "run.applescript");
@@ -94,6 +109,7 @@ export async function evalInChromeTab(jsCode: string, options: EvalOptions): Pro
 
 /** Runs a raw AppleScript (e.g. System Events keystrokes) and returns stdout. */
 export async function runAppleScript(script: string, timeoutMs = 30_000): Promise<string> {
+  assertMacOS();
   const dir = mkdtempSync(join(tmpdir(), "aichatctl-as-"));
   const scptPath = join(dir, "script.applescript");
   writeFileSync(scptPath, script, "utf8");
