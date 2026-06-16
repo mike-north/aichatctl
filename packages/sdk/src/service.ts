@@ -240,7 +240,7 @@ export async function createEmptyNotebook(options: CreateNotebookOptions): Promi
     throw new NotLoggedInError("notebooklm");
   }
   const notebook = await driver.createNotebook();
-  if (options.name !== undefined && options.name.length > 0) {
+  if (options.name !== undefined && options.name.trim().length > 0) {
     await driver.renameNotebook(notebook, options.name);
   }
   const name = await driver.getNotebookName(notebook);

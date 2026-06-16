@@ -397,20 +397,24 @@ export function buildProgram(io: IO = defaultIO): Command {
             "NotebookLM is supported only via the AppleScript transport. Re-run with --transport applescript.",
           );
         }
-        let kind: "text" | "url";
-        let content: string;
-        if (opts.url !== undefined) {
-          kind = "url";
-          content = opts.url;
-        } else if (opts.textFile !== undefined) {
-          kind = "text";
-          content = readPromptSource(opts.textFile);
-        } else if (opts.text !== undefined) {
-          kind = "text";
-          content = opts.text;
-        } else {
-          throw new AichatctlError("Provide one of --text, --text-file, or --url.");
+        const flagCount =
+          (opts.url !== undefined ? 1 : 0) +
+          (opts.textFile !== undefined ? 1 : 0) +
+          (opts.text !== undefined ? 1 : 0);
+        if (flagCount === 0) {
+          throw new AichatctlError("Provide exactly one of --text, --text-file, or --url.");
         }
+        if (flagCount > 1) {
+          throw new AichatctlError(
+            "Provide exactly one of --text, --text-file, or --url (got multiple).",
+          );
+        }
+        const [kind, content]: ["text" | "url", string] =
+          opts.url !== undefined
+            ? ["url", opts.url]
+            : opts.textFile !== undefined
+              ? ["text", readPromptSource(opts.textFile)]
+              : ["text", opts.text ?? ""];
         const profile = getProfileHint(program.opts());
         const result = await addNotebookSource({
           notebook: opts.notebook,

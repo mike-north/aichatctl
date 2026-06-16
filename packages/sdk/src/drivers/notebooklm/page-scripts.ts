@@ -97,19 +97,20 @@ export function scriptClickSourceMenu(sourceName: string): string {
   return `
     const containers = document.querySelectorAll(${JSON.stringify(SOURCE_CONTAINER_SELECTOR)});
     const icons = /^(${ICON_TEXT_PATTERN})$/;
-    let target = null;
+    const matches = [];
     for (const c of containers) {
       const leaves = [...c.querySelectorAll("span,div,p")].filter(el => el.children.length === 0);
       for (const leaf of leaves) {
         const t = (leaf.textContent || "").trim();
         if (t.length > 1 && !icons.test(t)) {
-          if (t.startsWith(${JSON.stringify(sourceName)})) { target = c; }
+          if (t.startsWith(${JSON.stringify(sourceName)})) { matches.push({ container: c, title: t }); }
           break;
         }
       }
-      if (target) break;
     }
-    if (!target) return JSON.stringify({ ok: false, why: "source not found" });
+    if (matches.length === 0) return JSON.stringify({ ok: false, why: "source not found" });
+    if (matches.length > 1) return JSON.stringify({ ok: false, why: "ambiguous prefix: " + matches.map(m => m.title).join(", ") });
+    const target = matches[0].container;
     const menuBtn = target.querySelector('button[class*="source-item-more"]')
       || target.querySelector('button[aria-label*="more" i]');
     if (!menuBtn) return JSON.stringify({ ok: false, why: "menu button not found" });

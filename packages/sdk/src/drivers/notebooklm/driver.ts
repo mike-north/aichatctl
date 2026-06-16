@@ -254,12 +254,14 @@ export class NotebookLmDriver {
 
   /** Lists the display names of all sources currently in the notebook. */
   public async listSources(nb: Notebook): Promise<string[]> {
+    await this.#ensureSourcePanelOpen(nb);
     const r = (await this.#evalNotebook(nb, scriptListSources())) as ListSourcesResult;
     return r.sources;
   }
 
   /** Removes a source by clicking its three-dot menu → "Remove source" → "Delete". */
   public async removeSource(nb: Notebook, sourceName: string): Promise<void> {
+    await this.#ensureSourcePanelOpen(nb);
     const menu = (await this.#evalNotebook(
       nb,
       scriptClickSourceMenu(sourceName),
@@ -320,9 +322,10 @@ export class NotebookLmDriver {
       const r = (await this.#evalNotebook(nb, scriptGetLatestSource())) as LatestSourceResult;
       if (r.settled) return r.latestTitle;
     }
-    const final = (await this.#evalNotebook(nb, scriptGetLatestSource())) as LatestSourceResult;
-    if (final.latestTitle.length > 0) return final.latestTitle;
-    throw new AichatctlError("Source was added but its title did not settle within the timeout.");
+    throw new AichatctlError(
+      "Source was added but NotebookLM did not generate a title within the timeout. " +
+        "Use 'notebook sources list' to check the current state.",
+    );
   }
 
   /**
