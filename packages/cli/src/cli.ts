@@ -399,12 +399,7 @@ export function buildProgram(io: IO = defaultIO): Command {
     .option("--out <path>", "write the message text to a file instead of stdout")
     .option("--json", "machine-readable output", false)
     .action(
-      async (opts: {
-        conversation: string;
-        platform: Platform;
-        out?: string;
-        json: boolean;
-      }) => {
+      async (opts: { conversation: string; platform: Platform; out?: string; json: boolean }) => {
         if (opts.platform === "gemini") {
           throw new AichatctlError("conversation pull supports only claude and chatgpt.");
         }
@@ -413,11 +408,16 @@ export function buildProgram(io: IO = defaultIO): Command {
           conversation: opts.conversation,
         });
         if (opts.out !== undefined) {
-          writeFileSync(opts.out, result.text, "utf8");
+          try {
+            writeFileSync(opts.out, result.text, "utf8");
+          } catch (error) {
+            const why = error instanceof Error ? error.message : String(error);
+            throw new AichatctlError(`Could not write --out file "${opts.out}": ${why}`);
+          }
         }
         const human =
           opts.out !== undefined
-            ? `Wrote ${String(result.text.length)} chars to ${opts.out}`
+            ? `Wrote ${String(result.text.length)} characters to ${opts.out}`
             : result.text;
         emit(io, opts.json, human, result);
       },

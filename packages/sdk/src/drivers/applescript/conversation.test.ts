@@ -38,6 +38,11 @@ describe("parseConversationRef — chatgpt", () => {
       matchUrl: "c/xyz-789",
     });
   });
+  it("accepts a bare id", () => {
+    const r = parseConversationRef("chatgpt", "abcdef012345");
+    expect(r.url).toBe("https://chatgpt.com/c/abcdef012345");
+    expect(r.matchUrl).toBe("c/abcdef012345");
+  });
   it("rejects an invalid ref", () => {
     expect(() => parseConversationRef("chatgpt", "??")).toThrow(
       /invalid chatgpt conversation reference/i,
@@ -53,5 +58,12 @@ describe("scriptLastAssistantMessage", () => {
     const js = scriptLastAssistantMessage("claude");
     expect(js).toContain("assistant");
     expect(js).toContain("JSON.stringify");
+  });
+  it("keeps the no-match and empty-text guard branches", () => {
+    // These guard the read against drift: if a future edit drops them, an empty
+    // or missing message would be reported as success instead of a clear error.
+    const js = scriptLastAssistantMessage("claude");
+    expect(js).toContain("no assistant message found");
+    expect(js).toContain("assistant message was empty");
   });
 });

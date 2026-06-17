@@ -7,7 +7,7 @@ Cannot run in CI (needs a real logged-in Chrome on macOS).
    Expect `{ "platform": "claude", "url": "…", "text": "<the last assistant message>" }`.
 3. Repeat with a ChatGPT conversation and `--platform chatgpt`.
 4. Add `--out findings.md`; expect the file to contain the message text and the
-   summary to report the byte/char count + path.
+   summary to report the character count + path.
 
 If `text` is empty or the command reports "no assistant message found",
 recalibrate the selectors in `packages/sdk/src/drivers/applescript/conversation.ts`.
