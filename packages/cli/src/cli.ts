@@ -68,8 +68,14 @@ export function buildProgram(io: IO = defaultIO): Command {
       "Drive the Claude.ai, ChatGPT, and NotebookLM web UIs in your real, logged-in Chrome (macOS).",
     )
     .version(getCliVersion(), "-v, --version")
-    .option("--browser-account <email>", "target a Chrome profile by signed-in Google account")
-    .option("--browser-profile <name>", "target a Chrome profile by display name")
+    .option(
+      "--browser-account <email>",
+      "NotebookLM commands only: target a Chrome profile by signed-in Google account",
+    )
+    .option(
+      "--browser-profile <name>",
+      "NotebookLM commands only: target a Chrome profile by display name",
+    )
     .exitOverride()
     .configureOutput({
       writeOut: (str) => {
@@ -114,8 +120,10 @@ export function buildProgram(io: IO = defaultIO): Command {
     .option("--json", "machine-readable output", false)
     .action(async (opts: { platform: Platform; json: boolean }) => {
       const projects = await listProjects({ platform: opts.platform });
+      // ChatGPT projects can come back without a resolvable URL; omit the empty
+      // second column rather than printing a dangling tab.
       const human = projects.length
-        ? projects.map((p) => `${p.name}\t${p.url}`).join("\n")
+        ? projects.map((p) => (p.url ? `${p.name}\t${p.url}` : p.name)).join("\n")
         : "(no projects found)";
       emit(io, opts.json, human, projects);
     });
