@@ -264,6 +264,9 @@ export interface GeneratePodcastOptions {
 }
 
 // @public
+export function getNotebookStatus(options: NotebookStatusOptions): Promise<NotebookStatusResult>;
+
+// @public
 export function getVersion(): string;
 
 // @public
@@ -355,6 +358,22 @@ export interface Notebook {
 }
 
 // @public
+export interface NotebookArtifact {
+    // (undocumented)
+    readonly state: NotebookArtifactState;
+    // (undocumented)
+    readonly title: string;
+    // (undocumented)
+    readonly type: NotebookArtifactType;
+}
+
+// @public
+export type NotebookArtifactState = "generating" | "ready" | "failed";
+
+// @public
+export type NotebookArtifactType = "audio-overview" | "unknown";
+
+// @public
 export class NotebookLmDriver {
     constructor(windowIds?: readonly string[]);
     addTextSource(nb: Notebook, content: string): Promise<void>;
@@ -366,6 +385,7 @@ export class NotebookLmDriver {
     getNotebookName(nb: Notebook): Promise<string>;
     // (undocumented)
     isLoggedIn(): Promise<boolean>;
+    listArtifacts(nb: Notebook): Promise<NotebookArtifact[]>;
     listSources(nb: Notebook): Promise<string[]>;
     static parseNotebookRef(ref: string): Notebook;
     removeSource(nb: Notebook, sourceName: string): Promise<void>;
@@ -398,6 +418,21 @@ export interface NotebookSourcesResult {
     readonly notebook: Notebook;
     // (undocumented)
     readonly sources: string[];
+}
+
+// @public
+export interface NotebookStatusOptions {
+    readonly notebook: string;
+    readonly profile?: ProfileHint;
+    readonly skipLoginCheck?: boolean;
+}
+
+// @public
+export interface NotebookStatusResult {
+    // (undocumented)
+    readonly artifacts: NotebookArtifact[];
+    // (undocumented)
+    readonly notebook: Notebook;
 }
 
 // @public

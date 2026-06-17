@@ -122,4 +122,18 @@ describe("run", () => {
     expect(code).toBe(1);
     expect(err.join("\n")).toMatch(/invalid notebook reference/i);
   });
+
+  it("rejects a non-applescript transport for notebook status", async () => {
+    const { io, err } = captureIO();
+    const code = await run(argv("notebook", "status", "--notebook", "abc123", "--transport", "cdp"), io);
+    expect(code).toBe(1);
+    expect(err.join("\n")).toMatch(/AppleScript transport/);
+  });
+
+  it("rejects an invalid notebook ref for notebook status", async () => {
+    const { io, err } = captureIO();
+    const code = await run(argv("notebook", "status", "--notebook", "not valid!"), io);
+    expect(code).toBe(1);
+    expect(err.join("\n")).toMatch(/invalid notebook reference/i);
+  });
 });

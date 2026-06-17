@@ -176,6 +176,20 @@ Reads the current notebook title (empty string if untitled).
 </td></tr>
 <tr><td>
 
+[listArtifacts(nb)](./sdk.notebooklmdriver.listartifacts.md)
+
+
+</td><td>
+
+
+</td><td>
+
+Lists the artifacts (Audio Overviews, …) in the notebook's Studio panel.
+
+
+</td></tr>
+<tr><td>
+
 [listSources(nb)](./sdk.notebooklmdriver.listsources.md)
 
 

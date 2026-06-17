@@ -6,18 +6,20 @@ import {
   scriptConfirmDelete,
   scriptGetLatestSource,
   scriptGetNotebookName,
+  scriptListArtifacts,
   scriptListSources,
   scriptRenameNotebook,
 } from "./page-scripts.js";
 import type {
   GetNameResult,
   LatestSourceResult,
+  ListArtifactsResult,
   ListSourcesResult,
   RenameResult,
   SourceMenuResult,
 } from "./page-scripts.js";
-import { AUDIO_FORMAT_LABEL, AUDIO_LENGTH_LABEL } from "./types.js";
-import type { AudioOverviewOptions } from "./types.js";
+import { AUDIO_FORMAT_LABEL, AUDIO_LENGTH_LABEL, coerceArtifactType, normalizeArtifactState } from "./types.js";
+import type { AudioOverviewOptions, NotebookArtifact } from "./types.js";
 
 const NB_HOST = "notebooklm.google.com";
 const NB_HOME = "https://notebooklm.google.com/";
@@ -257,6 +259,16 @@ export class NotebookLmDriver {
     await this.#ensureSourcePanelOpen(nb);
     const r = (await this.#evalNotebook(nb, scriptListSources())) as ListSourcesResult;
     return r.sources;
+  }
+
+  /** Lists the artifacts (Audio Overviews, …) in the notebook's Studio panel. */
+  public async listArtifacts(nb: Notebook): Promise<NotebookArtifact[]> {
+    const r = (await this.#evalNotebook(nb, scriptListArtifacts())) as ListArtifactsResult;
+    return r.tiles.map((t) => ({
+      type: coerceArtifactType(t.rawType),
+      title: t.title,
+      state: normalizeArtifactState(t.rawState),
+    }));
   }
 
   /** Removes a source by clicking its three-dot menu → "Remove source" → "Delete". */

@@ -9,7 +9,7 @@ import { createDriver } from "./drivers/factory.js";
 import type { Driver } from "./drivers/driver.js";
 import { NotebookLmDriver } from "./drivers/notebooklm/driver.js";
 import type { Notebook } from "./drivers/notebooklm/driver.js";
-import type { AudioOverviewOptions } from "./drivers/notebooklm/types.js";
+import type { AudioOverviewOptions, NotebookArtifact } from "./drivers/notebooklm/types.js";
 import { AichatctlError, NotLoggedInError } from "./errors.js";
 import { loadManifest, manifestForPlatform } from "./sync/manifest.js";
 import { syncPlatform } from "./sync/sync.js";
@@ -392,4 +392,37 @@ export async function addNotebookSource(options: AddSourceOptions): Promise<AddS
       ? await driver.addUrlSourceAndAwaitTitle(nb, options.content)
       : await driver.addTextSourceAndAwaitTitle(nb, options.content);
   return { title };
+}
+
+/** Options for {@link getNotebookStatus}. */
+export interface NotebookStatusOptions {
+  /** Notebook URL or UUID. */
+  readonly notebook: string;
+  /** Target a specific Chrome profile. */
+  readonly profile?: ProfileHint;
+  /** Skip the logged-in precondition check. */
+  readonly skipLoginCheck?: boolean;
+}
+
+/** Result of {@link getNotebookStatus}. */
+export interface NotebookStatusResult {
+  readonly notebook: Notebook;
+  readonly artifacts: NotebookArtifact[];
+}
+
+/**
+ * Reports the artifacts (Audio Overviews, …) in a notebook's Studio panel with a
+ * best-effort `type`/`state`. AppleScript transport only (macOS).
+ */
+export async function getNotebookStatus(
+  options: NotebookStatusOptions,
+): Promise<NotebookStatusResult> {
+  const nb = NotebookLmDriver.parseNotebookRef(options.notebook);
+  const windowIds = await resolveWindowIds(options.profile);
+  const driver = new NotebookLmDriver(windowIds);
+  if (options.skipLoginCheck !== true && !(await driver.isLoggedIn())) {
+    throw new NotLoggedInError("notebooklm");
+  }
+  const artifacts = await driver.listArtifacts(nb);
+  return { notebook: nb, artifacts };
 }
