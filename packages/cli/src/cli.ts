@@ -1,3 +1,5 @@
+import { writeFileSync } from "node:fs";
+
 import { Command, CommanderError, InvalidArgumentError } from "commander";
 
 import {
@@ -15,6 +17,7 @@ import {
   parseAudioFormat,
   parseAudioLength,
   planHasChanges,
+  pullConversation,
   readPromptSource,
   removeNotebookSource,
   renameNotebook,
@@ -381,6 +384,42 @@ export function buildProgram(io: IO = defaultIO): Command {
           format,
           length,
         });
+      },
+    );
+
+  // conversation read-back ------------------------------------------------------
+  const conversation = program
+    .command("conversation")
+    .description("Read conversations back from the web UIs");
+  conversation
+    .command("pull")
+    .description("Fetch the latest assistant message from a conversation")
+    .requiredOption("--conversation <ref>", "conversation URL or id")
+    .requiredOption("--platform <platform>", "claude | chatgpt", parsePlatform)
+    .option("--out <path>", "write the message text to a file instead of stdout")
+    .option("--json", "machine-readable output", false)
+    .action(
+      async (opts: {
+        conversation: string;
+        platform: Platform;
+        out?: string;
+        json: boolean;
+      }) => {
+        if (opts.platform === "gemini") {
+          throw new AichatctlError("conversation pull supports only claude and chatgpt.");
+        }
+        const result = await pullConversation({
+          platform: opts.platform,
+          conversation: opts.conversation,
+        });
+        if (opts.out !== undefined) {
+          writeFileSync(opts.out, result.text, "utf8");
+        }
+        const human =
+          opts.out !== undefined
+            ? `Wrote ${String(result.text.length)} chars to ${opts.out}`
+            : result.text;
+        emit(io, opts.json, human, result);
       },
     );
 

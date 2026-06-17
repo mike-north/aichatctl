@@ -111,4 +111,24 @@ describe("run", () => {
     expect(code).toBe(1);
     expect(err.join("\n")).toMatch(/invalid notebook reference/i);
   });
+
+  it("rejects gemini for conversation pull", async () => {
+    const { io, err } = captureIO();
+    const code = await run(
+      argv("conversation", "pull", "--platform", "gemini", "--conversation", "abc123def456"),
+      io,
+    );
+    expect(code).toBe(1);
+    expect(err.join("\n")).toMatch(/only claude and chatgpt/i);
+  });
+
+  it("rejects an invalid conversation ref before connecting", async () => {
+    const { io, err } = captureIO();
+    const code = await run(
+      argv("conversation", "pull", "--platform", "claude", "--conversation", "not valid!"),
+      io,
+    );
+    expect(code).toBe(1);
+    expect(err.join("\n")).toMatch(/invalid claude conversation reference/i);
+  });
 });
