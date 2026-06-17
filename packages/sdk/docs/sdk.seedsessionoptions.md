@@ -9,9 +9,8 @@ Options for [createSeededSession()](./sdk.createseededsession.md)<!-- -->.
 **Signature:**
 
 ```typescript
-export interface SeedSessionOptions extends ConnectionOptions 
+export interface SeedSessionOptions 
 ```
-**Extends:** [ConnectionOptions](./sdk.connectionoptions.md)
 
 ## Properties
 

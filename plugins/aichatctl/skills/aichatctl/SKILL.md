@@ -23,18 +23,12 @@ mechanics are deterministic and belong to the CLI. Your job is the reasoning:
 deciding what to sync and composing the seed prompt. Always pass `--json` and
 parse the result.
 
-## Prerequisite: pick a transport
+## Prerequisite: verify Chrome is ready
 
-Two transports drive the user's real, logged-in Chrome:
-
-- **`--transport applescript`** (primary, macOS) — drives Chrome with no
-  extension via `osascript`. It needs one toggle: Chrome → View → Developer →
-  **Allow JavaScript from Apple Events**. Preflight with
-  `aichatctl doctor --transport applescript --json` (checks the toggle + login per
-  platform). **Gemini requires this transport.**
-- **`--transport cdp`** (fallback, default) — a dedicated Playwright automation
-  profile (`aichatctl browser launch`, then sign in once). For non-macOS or
-  headless use.
+`aichatctl` drives the user's real, logged-in Chrome via AppleScript (`osascript`) —
+macOS only. It needs one toggle: Chrome → View → Developer →
+**Allow JavaScript from Apple Events**. Preflight with
+`aichatctl doctor --json` (checks the toggle + login per platform).
 
 If `doctor` reports the Apple Events toggle is off or a platform isn't logged in,
 tell the user how to fix it, then retry.
@@ -46,9 +40,9 @@ target project, an optional instructions markdown file, and which local file glo
 to mirror. **Always dry-run first**, show the plan, then apply.
 
 ```bash
-aichatctl sync --transport applescript --dry-run --json    # preview upload/replace/delete + instructions
-aichatctl sync --transport applescript --json              # apply it
-aichatctl sync --transport applescript --platform chatgpt --json   # one platform
+aichatctl sync --dry-run --json                    # preview upload/replace/delete + instructions
+aichatctl sync --json                              # apply it
+aichatctl sync --platform chatgpt --json          # one platform
 ```
 
 Only files aichatctl previously synced are ever deleted — files the user added
@@ -60,12 +54,10 @@ Compose the seed prompt yourself from the current context (notes, plan, recent
 work), then:
 
 ```bash
-aichatctl session create --transport applescript \
-  --platform claude --project "My Project" --seed-file scratch/seed.md --json
+aichatctl session create --platform claude --project "My Project" --seed-file scratch/seed.md --json
 
 # Gemini (seed only): --project is a Gem URL/id, or "new" for a plain chat
-aichatctl session create --transport applescript \
-  --platform gemini --project new --seed-file scratch/seed.md --json
+aichatctl session create --platform gemini --project new --seed-file scratch/seed.md --json
 ```
 
 The JSON result includes the conversation `url`. Give it to the user; they open

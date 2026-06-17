@@ -4,7 +4,7 @@
 
 ## Driver interface
 
-Platform driver: all deterministic, DOM-level mechanics for one web AI chat platform. Implementations keep every locator in a sibling `selectors.ts` so UI drift is a one-file fix.
+Platform driver: all deterministic, DOM-level mechanics for one web AI chat platform, driven through the AppleScript transport (the user's real, logged-in Chrome). NotebookLM has its own standalone driver.
 
 **Signature:**
 
@@ -143,17 +143,6 @@ Lists the projects visible to the signed-in user.
 </td><td>
 
 Resolves a name/URL/id reference to a concrete project.
-
-
-</td></tr>
-<tr><td>
-
-[selftest()](./sdk.driver.selftest.md)
-
-
-</td><td>
-
-Verifies that the platform's centralized selectors still resolve.
 
 
 </td></tr>

@@ -6,8 +6,6 @@ import {
   addNotebookSource,
   createEmptyNotebook,
   createSeededSession,
-  createSeededSessionViaApplescript,
-  doctor,
   doctorApplescript,
   generateNotebookPodcast,
   listNotebookSources,
@@ -22,28 +20,21 @@ import { getServerVersion } from "./version.js";
 
 const seedPlatformSchema = z.enum(["claude", "chatgpt", "gemini"]);
 const syncPlatformSchema = z.enum(["claude", "chatgpt"]);
-const transportSchema = z.enum(["cdp", "applescript"]);
-const portSchema = z.number().int().positive().max(65535).optional();
 const formatSchema = z.enum(["deep-dive", "brief", "critique", "debate"]).default("deep-dive");
 const lengthSchema = z.enum(["short", "default", "long"]).default("default");
 
 /** Input shapes (ZodRawShape) for each tool, declared at module scope. */
-const doctorShape = { transport: transportSchema.default("cdp"), port: portSchema } as const;
-const projectListShape = { platform: syncPlatformSchema, port: portSchema } as const;
+const projectListShape = { platform: syncPlatformSchema } as const;
 const syncShape = {
   configPath: z.string().min(1).default("aichatctl.config.yaml"),
   platform: syncPlatformSchema.optional(),
   dryRun: z.boolean().default(false),
-  transport: transportSchema.default("cdp"),
-  port: portSchema,
 } as const;
 const sessionCreateShape = {
   platform: seedPlatformSchema,
   project: z.string().min(1),
   prompt: z.string().min(1),
   send: z.boolean().default(true),
-  transport: transportSchema.default("cdp"),
-  port: portSchema,
 } as const;
 const notebookNewShape = {
   name: z.string().min(1).optional(),
@@ -80,11 +71,6 @@ function fail(error: unknown): CallToolResult {
   return { content: [{ type: "text", text: `error: ${message}` }], isError: true };
 }
 
-/** Conditionally includes `port` to satisfy exactOptionalPropertyTypes. */
-function conn(port: number | undefined): { port?: number } {
-  return port === undefined ? {} : { port };
-}
-
 /** Builds the aichatctl MCP server with all tools registered. */
 export function createServer(): McpServer {
   const server = new McpServer({ name: "aichatctl", version: getServerVersion() });
@@ -93,15 +79,12 @@ export function createServer(): McpServer {
     "aichat_doctor",
     {
       description:
-        "Check transport readiness: CDP reachability + login (transport=cdp), or the " +
-        "AppleScript prerequisites + per-platform login (transport=applescript).",
-      inputSchema: doctorShape,
+        "Check readiness: Chrome's 'Allow JavaScript from Apple Events' setting plus per-platform login state (macOS, drives your real Chrome).",
+      inputSchema: {},
     },
-    async ({ transport, port }) => {
+    async () => {
       try {
-        return ok(
-          transport === "applescript" ? await doctorApplescript() : await doctor(conn(port)),
-        );
+        return ok(await doctorApplescript());
       } catch (error) {
         return fail(error);
       }
@@ -114,9 +97,9 @@ export function createServer(): McpServer {
       description: "List the projects visible on a platform (claude or chatgpt).",
       inputSchema: projectListShape,
     },
-    async ({ platform, port }) => {
+    async ({ platform }) => {
       try {
-        return ok(await listProjects({ platform, ...conn(port) }));
+        return ok(await listProjects({ platform }));
       } catch (error) {
         return fail(error);
       }
@@ -128,10 +111,10 @@ export function createServer(): McpServer {
     {
       description:
         "Mirror local files and instructions declared in the manifest into the project library. " +
-        "Use dryRun=true first to preview the plan. transport=applescript drives your real Chrome (macOS).",
+        "Use dryRun=true first to preview the plan. Drives your real, logged-in Chrome (macOS).",
       inputSchema: syncShape,
     },
-    async ({ configPath, platform, dryRun, transport, port }) => {
+    async ({ configPath, platform, dryRun }) => {
       try {
         const platforms: readonly Platform[] | undefined =
           platform === undefined ? undefined : [platform];
@@ -139,9 +122,7 @@ export function createServer(): McpServer {
           await runSync({
             configPath,
             dryRun,
-            transport,
             ...(platforms ? { platforms } : {}),
-            ...conn(port),
           }),
         );
       } catch (error) {
@@ -155,19 +136,12 @@ export function createServer(): McpServer {
     {
       description:
         "Create a new chat session in a project, seeded with a prompt. send=true submits it so the " +
-        "conversation can be continued from the mobile app. Gemini is seed-only and requires transport=applescript.",
+        "conversation can be continued from the mobile app. Drives your real, logged-in Chrome (macOS).",
       inputSchema: sessionCreateShape,
     },
-    async ({ platform, project, prompt, send, transport, port }) => {
+    async ({ platform, project, prompt, send }) => {
       try {
-        if (platform === "gemini" && transport !== "applescript") {
-          return fail(new Error("Gemini is supported only via transport=applescript."));
-        }
-        const result =
-          transport === "applescript"
-            ? await createSeededSessionViaApplescript({ platform, project, prompt, send })
-            : await createSeededSession({ platform, project, prompt, send, ...conn(port) });
-        return ok(result);
+        return ok(await createSeededSession({ platform, project, prompt, send }));
       } catch (error) {
         return fail(error);
       }

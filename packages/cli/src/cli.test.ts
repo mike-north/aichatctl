@@ -2,8 +2,9 @@
  * CLI behavior tests (UAT layer).
  *
  * These drive the program through its real parser + the real SDK service layer.
- * They never reach a browser: doctor short-circuits when CDP is unreachable, and
- * the seed validation fails before any connection is attempted.
+ * They never reach a browser: each asserts a usage/validation error (unknown
+ * option or command, empty seed, invalid notebook ref) that is raised before any
+ * AppleScript is run.
  */
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -43,13 +44,22 @@ describe("run", () => {
     expect(out.join("\n")).toMatch(/Usage: aichatctl/);
   });
 
-  it("reports CDP unreachable and exits 1 for doctor with no browser", async () => {
-    const { io, out } = captureIO();
-    // Use an almost-certainly-closed port so the test is hermetic.
-    const code = await run(argv("doctor", "--json", "--port", "65535"), io);
-    const report: unknown = JSON.parse(out.join("\n"));
-    expect(report).toMatchObject({ cdpReachable: false, ok: false });
-    expect(code).toBe(1);
+  it("no longer accepts the removed --transport / --port flags (CDP removed)", async () => {
+    const { io, err } = captureIO();
+    const t = await run(argv("doctor", "--transport", "cdp"), io);
+    expect(t).not.toBe(0);
+    expect(err.join("\n")).toMatch(/unknown option '--transport'/);
+    const { io: io2, err: err2 } = captureIO();
+    const p = await run(argv("sync", "--port", "9222"), io2);
+    expect(p).not.toBe(0);
+    expect(err2.join("\n")).toMatch(/unknown option '--port'/);
+  });
+
+  it("has no `browser` command (CDP removed)", async () => {
+    const { io, err } = captureIO();
+    const code = await run(argv("browser", "launch"), io);
+    expect(code).not.toBe(0);
+    expect(err.join("\n")).toMatch(/unknown command 'browser'/);
   });
 
   it("rejects an empty seed before connecting and exits 1", async () => {
@@ -66,27 +76,6 @@ describe("run", () => {
     const { io } = captureIO();
     const code = await run(argv("project", "list", "--platform", "bard"), io);
     expect(code).not.toBe(0);
-  });
-
-  it("rejects Gemini on a non-AppleScript transport before connecting", async () => {
-    const { io, err } = captureIO();
-    const code = await run(
-      argv(
-        "session",
-        "create",
-        "--platform",
-        "gemini",
-        "--project",
-        "new",
-        "--seed",
-        "hi",
-        "--transport",
-        "cdp",
-      ),
-      io,
-    );
-    expect(code).toBe(1);
-    expect(err.join("\n")).toMatch(/AppleScript transport/);
   });
 
   it("rejects an unknown --type as a usage error for notebook podcast create", async () => {
@@ -109,25 +98,11 @@ describe("run", () => {
     expect(err.join("\n")).toMatch(/short, default, long/);
   });
 
-  it("rejects a non-applescript transport for notebook new", async () => {
-    const { io, err } = captureIO();
-    const code = await run(argv("notebook", "new", "--transport", "cdp"), io);
-    expect(code).toBe(1);
-    expect(err.join("\n")).toMatch(/AppleScript transport/);
-  });
-
   it("rejects an invalid notebook ref for notebook sources list", async () => {
     const { io, err } = captureIO();
     const code = await run(argv("notebook", "sources", "list", "--notebook", "not valid!"), io);
     expect(code).toBe(1);
     expect(err.join("\n")).toMatch(/invalid notebook reference/i);
-  });
-
-  it("rejects a non-applescript transport for notebook status", async () => {
-    const { io, err } = captureIO();
-    const code = await run(argv("notebook", "status", "--notebook", "abc123", "--transport", "cdp"), io);
-    expect(code).toBe(1);
-    expect(err.join("\n")).toMatch(/AppleScript transport/);
   });
 
   it("rejects an invalid notebook ref for notebook status", async () => {

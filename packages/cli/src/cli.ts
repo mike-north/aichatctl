@@ -2,18 +2,14 @@ import { Command, CommanderError, InvalidArgumentError } from "commander";
 
 import {
   AichatctlError,
-  DEFAULT_CDP_PORT,
   NotebookLmDriver,
   PLATFORMS,
   addNotebookSource,
   createEmptyNotebook,
   createSeededSession,
-  createSeededSessionViaApplescript,
-  doctor,
   doctorApplescript,
   generateNotebookPodcast,
   getNotebookStatus,
-  launchChrome,
   listNotebookSources,
   listProjects,
   parseAudioFormat,
@@ -46,23 +42,6 @@ function parsePlatform(value: string): Platform {
   throw new InvalidArgumentError(`platform must be one of: ${PLATFORMS.join(", ")}`);
 }
 
-function parsePort(value: string): number {
-  const n = Number.parseInt(value, 10);
-  if (Number.isNaN(n) || n <= 0 || n > 65535) {
-    throw new InvalidArgumentError("port must be an integer in 1..65535");
-  }
-  return n;
-}
-
-type Transport = "cdp" | "applescript";
-
-function parseTransport(value: string): Transport {
-  if (value === "cdp" || value === "applescript") {
-    return value;
-  }
-  throw new InvalidArgumentError("transport must be 'cdp' or 'applescript'");
-}
-
 function emit(io: IO, json: boolean, human: string, data: unknown): void {
   io.out(json ? JSON.stringify(data, null, 2) : human);
 }
@@ -85,10 +64,18 @@ export function buildProgram(io: IO = defaultIO): Command {
   const program = new Command();
   program
     .name("aichatctl")
-    .description("Drive the Claude.ai and ChatGPT web UIs: sync project files and seed sessions.")
+    .description(
+      "Drive the Claude.ai, ChatGPT, and NotebookLM web UIs in your real, logged-in Chrome (macOS).",
+    )
     .version(getCliVersion(), "-v, --version")
-    .option("--browser-account <email>", "target a Chrome profile by signed-in Google account")
-    .option("--browser-profile <name>", "target a Chrome profile by display name")
+    .option(
+      "--browser-account <email>",
+      "NotebookLM commands only: target a Chrome profile by signed-in Google account",
+    )
+    .option(
+      "--browser-profile <name>",
+      "NotebookLM commands only: target a Chrome profile by display name",
+    )
     .exitOverride()
     .configureOutput({
       writeOut: (str) => {
@@ -99,55 +86,23 @@ export function buildProgram(io: IO = defaultIO): Command {
       },
     });
 
-  const portOption = (cmd: Command): Command =>
-    cmd.option("-p, --port <port>", "CDP remote-debugging port", parsePort, DEFAULT_CDP_PORT);
-
-  // browser launch -------------------------------------------------------------
-  const browser = program.command("browser").description("Manage the automation browser");
-  portOption(browser.command("launch"))
-    .description("Launch Chrome with remote debugging using the dedicated automation profile")
-    .action((opts: { port: number }) => {
-      const result = launchChrome({ port: opts.port });
-      io.out(`Launched Chrome (pid ${String(result.pid ?? "?")}) on port ${String(opts.port)}.`);
-      io.out(`Profile: ${result.userDataDir}`);
-      io.out("If this is the first launch, sign in to claude.ai and chatgpt.com in that window.");
-    });
-
   // doctor ---------------------------------------------------------------------
-  portOption(program.command("doctor"))
-    .description("Check transport readiness (CDP reachability / AppleScript prerequisites + login)")
-    .option("--transport <t>", "cdp | applescript", parseTransport, "cdp")
+  program
+    .command("doctor")
+    .description(
+      "Check readiness: Chrome's 'Allow JavaScript from Apple Events' + per-platform login",
+    )
     .option("--json", "machine-readable output", false)
-    .action(async (opts: { port: number; transport: Transport; json: boolean }) => {
-      if (opts.transport === "applescript") {
-        const report = await doctorApplescript();
-        const lines: string[] = [];
-        lines.push(
-          report.jsFromAppleEventsEnabled
-            ? "Chrome: 'Allow JavaScript from Apple Events' enabled"
-            : "Chrome: 'Allow JavaScript from Apple Events' is OFF — enable it (View → Developer).",
-        );
-        for (const p of report.platforms) {
-          lines.push(`${p.platform}: login=${String(p.loggedIn)}${p.error ? ` (${p.error})` : ""}`);
-        }
-        lines.push(report.ok ? "OK" : "Problems found.");
-        emit(io, opts.json, lines.join("\n"), report);
-        if (!report.ok) {
-          process.exitCode = 1;
-        }
-        return;
-      }
-      const report = await doctor({ port: opts.port });
+    .action(async (opts: { json: boolean }) => {
+      const report = await doctorApplescript();
       const lines: string[] = [];
       lines.push(
-        `CDP ${report.cdpReachable ? "reachable" : "UNREACHABLE"} on port ${String(report.cdpPort)}`,
+        report.jsFromAppleEventsEnabled
+          ? "Chrome: 'Allow JavaScript from Apple Events' enabled"
+          : "Chrome: 'Allow JavaScript from Apple Events' is OFF — enable it (View → Developer).",
       );
-      if (!report.cdpReachable) {
-        lines.push("Run `aichatctl browser launch` first.");
-      }
       for (const p of report.platforms) {
-        const probes = p.probes.map((x) => `${x.ok ? "ok" : "MISSING"}:${x.name}`).join(", ");
-        lines.push(`${p.platform}: login=${String(p.loggedIn)} ${probes ? `[${probes}]` : ""}`);
+        lines.push(`${p.platform}: login=${String(p.loggedIn)}${p.error ? ` (${p.error})` : ""}`);
       }
       lines.push(report.ok ? "OK" : "Problems found.");
       emit(io, opts.json, lines.join("\n"), report);
@@ -158,40 +113,34 @@ export function buildProgram(io: IO = defaultIO): Command {
 
   // project list ---------------------------------------------------------------
   const project = program.command("project").description("Inspect web projects");
-  portOption(project.command("list"))
+  project
+    .command("list")
     .description("List projects on a platform")
     .requiredOption("--platform <platform>", "claude | chatgpt", parsePlatform)
     .option("--json", "machine-readable output", false)
-    .action(async (opts: { platform: Platform; port: number; json: boolean }) => {
-      const projects = await listProjects({ platform: opts.platform, port: opts.port });
+    .action(async (opts: { platform: Platform; json: boolean }) => {
+      const projects = await listProjects({ platform: opts.platform });
+      // ChatGPT projects can come back without a resolvable URL; omit the empty
+      // second column rather than printing a dangling tab.
       const human = projects.length
-        ? projects.map((p) => `${p.name}\t${p.url}`).join("\n")
+        ? projects.map((p) => (p.url ? `${p.name}\t${p.url}` : p.name)).join("\n")
         : "(no projects found)";
       emit(io, opts.json, human, projects);
     });
 
   // sync -----------------------------------------------------------------------
-  portOption(program.command("sync"))
+  program
+    .command("sync")
     .description("Mirror declared local files + instructions into the project library")
     .option("-c, --config <path>", "manifest path", "aichatctl.config.yaml")
     .option("--platform <platform>", "limit to one platform", parsePlatform)
     .option("--dry-run", "compute the plan without making changes", false)
-    .option("--transport <t>", "cdp | applescript", parseTransport, "cdp")
     .option("--json", "machine-readable output", false)
     .action(
-      async (opts: {
-        config: string;
-        platform?: Platform;
-        dryRun: boolean;
-        transport: Transport;
-        port: number;
-        json: boolean;
-      }) => {
+      async (opts: { config: string; platform?: Platform; dryRun: boolean; json: boolean }) => {
         const reports = await runSync({
           configPath: opts.config,
           dryRun: opts.dryRun,
-          port: opts.port,
-          transport: opts.transport,
           ...(opts.platform ? { platforms: [opts.platform] } : {}),
         });
         const lines: string[] = [];
@@ -213,7 +162,8 @@ export function buildProgram(io: IO = defaultIO): Command {
 
   // session create -------------------------------------------------------------
   const session = program.command("session").description("Manage chat sessions");
-  portOption(session.command("create"))
+  session
+    .command("create")
     .description("Create a new chat session in a project, seeded with a prompt")
     .requiredOption("--platform <platform>", "claude | chatgpt | gemini", parsePlatform)
     .requiredOption(
@@ -223,12 +173,6 @@ export function buildProgram(io: IO = defaultIO): Command {
     .option("--seed <text>", "seed prompt text")
     .option("--seed-file <path>", 'read seed prompt from a file ("-" for stdin)')
     .option("--no-send", "stage the prompt without submitting it")
-    .option(
-      "--transport <t>",
-      "cdp | applescript (gemini: applescript only)",
-      parseTransport,
-      "cdp",
-    )
     .option("--json", "machine-readable output", false)
     .action(
       async (opts: {
@@ -237,31 +181,18 @@ export function buildProgram(io: IO = defaultIO): Command {
         seed?: string;
         seedFile?: string;
         send: boolean;
-        transport: Transport;
-        port: number;
         json: boolean;
       }) => {
         const prompt = opts.seedFile !== undefined ? readPromptSource(opts.seedFile) : opts.seed;
         if (prompt === undefined || prompt.trim().length === 0) {
           throw new AichatctlError("Provide a non-empty --seed or --seed-file.");
         }
-        if (opts.platform === "gemini" && opts.transport !== "applescript") {
-          throw new AichatctlError(
-            "Gemini is supported only via the AppleScript transport. Re-run with --transport applescript.",
-          );
-        }
-        const common = {
+        const result = await createSeededSession({
           platform: opts.platform,
           project: opts.project,
           prompt,
           send: opts.send,
-        };
-        let result;
-        if (opts.transport === "applescript") {
-          result = await createSeededSessionViaApplescript(common);
-        } else {
-          result = await createSeededSession({ ...common, port: opts.port });
-        }
+        });
         emit(io, opts.json, `${result.sent ? "Started" : "Staged"} session: ${result.url}`, result);
       },
     );
@@ -273,14 +204,8 @@ export function buildProgram(io: IO = defaultIO): Command {
     .command("new")
     .description("Create an empty NotebookLM notebook")
     .option("--name <name>", "name for the notebook")
-    .option("--transport <t>", "applescript (only)", parseTransport, "applescript")
     .option("--json", "machine-readable output", false)
-    .action(async (opts: { name?: string; transport: Transport; json: boolean }) => {
-      if (opts.transport !== "applescript") {
-        throw new AichatctlError(
-          "NotebookLM is supported only via the AppleScript transport. Re-run with --transport applescript.",
-        );
-      }
+    .action(async (opts: { name?: string; json: boolean }) => {
       const profile = getProfileHint(program.opts());
       const result = await createEmptyNotebook({
         ...(opts.name !== undefined ? { name: opts.name } : {}),
@@ -299,42 +224,28 @@ export function buildProgram(io: IO = defaultIO): Command {
     .description("Rename an existing notebook")
     .requiredOption("--notebook <ref>", "notebook URL or UUID")
     .requiredOption("--name <name>", "new name for the notebook")
-    .option("--transport <t>", "applescript (only)", parseTransport, "applescript")
     .option("--json", "machine-readable output", false)
-    .action(
-      async (opts: { notebook: string; name: string; transport: Transport; json: boolean }) => {
-        if (opts.transport !== "applescript") {
-          throw new AichatctlError(
-            "NotebookLM is supported only via the AppleScript transport. Re-run with --transport applescript.",
-          );
-        }
-        const profile = getProfileHint(program.opts());
-        await renameNotebook({
-          notebook: opts.notebook,
-          name: opts.name,
-          ...(profile !== undefined ? { profile } : {}),
-        });
-        const nb = NotebookLmDriver.parseNotebookRef(opts.notebook);
-        emit(io, opts.json, `Renamed notebook to "${opts.name}": ${nb.url}`, {
-          id: nb.id,
-          url: nb.url,
-          name: opts.name,
-        });
-      },
-    );
+    .action(async (opts: { notebook: string; name: string; json: boolean }) => {
+      const profile = getProfileHint(program.opts());
+      await renameNotebook({
+        notebook: opts.notebook,
+        name: opts.name,
+        ...(profile !== undefined ? { profile } : {}),
+      });
+      const nb = NotebookLmDriver.parseNotebookRef(opts.notebook);
+      emit(io, opts.json, `Renamed notebook to "${opts.name}": ${nb.url}`, {
+        id: nb.id,
+        url: nb.url,
+        name: opts.name,
+      });
+    });
 
   notebook
     .command("status")
     .description("Report the state of a notebook's Studio artifacts (Audio Overviews, …)")
     .requiredOption("--notebook <ref>", "notebook URL or UUID")
-    .option("--transport <t>", "applescript (only)", parseTransport, "applescript")
     .option("--json", "machine-readable output", false)
-    .action(async (opts: { notebook: string; transport: Transport; json: boolean }) => {
-      if (opts.transport !== "applescript") {
-        throw new AichatctlError(
-          "NotebookLM is supported only via the AppleScript transport. Re-run with --transport applescript.",
-        );
-      }
+    .action(async (opts: { notebook: string; json: boolean }) => {
       const profile = getProfileHint(program.opts());
       const result = await getNotebookStatus({
         notebook: opts.notebook,
@@ -353,14 +264,8 @@ export function buildProgram(io: IO = defaultIO): Command {
     .command("list")
     .description("List sources in a notebook")
     .requiredOption("--notebook <ref>", "notebook URL or UUID")
-    .option("--transport <t>", "applescript (only)", parseTransport, "applescript")
     .option("--json", "machine-readable output", false)
-    .action(async (opts: { notebook: string; transport: Transport; json: boolean }) => {
-      if (opts.transport !== "applescript") {
-        throw new AichatctlError(
-          "NotebookLM is supported only via the AppleScript transport. Re-run with --transport applescript.",
-        );
-      }
+    .action(async (opts: { notebook: string; json: boolean }) => {
       const profile = getProfileHint(program.opts());
       const result = await listNotebookSources({
         notebook: opts.notebook,
@@ -377,28 +282,20 @@ export function buildProgram(io: IO = defaultIO): Command {
     .description("Remove a source from a notebook")
     .requiredOption("--notebook <ref>", "notebook URL or UUID")
     .requiredOption("--source <name>", "source name (or prefix) to remove")
-    .option("--transport <t>", "applescript (only)", parseTransport, "applescript")
     .option("--json", "machine-readable output", false)
-    .action(
-      async (opts: { notebook: string; source: string; transport: Transport; json: boolean }) => {
-        if (opts.transport !== "applescript") {
-          throw new AichatctlError(
-            "NotebookLM is supported only via the AppleScript transport. Re-run with --transport applescript.",
-          );
-        }
-        const profile = getProfileHint(program.opts());
-        await removeNotebookSource({
-          notebook: opts.notebook,
-          source: opts.source,
-          ...(profile !== undefined ? { profile } : {}),
-        });
-        emit(io, opts.json, `Removed source "${opts.source}"`, {
-          notebook: opts.notebook,
-          source: opts.source,
-          removed: true,
-        });
-      },
-    );
+    .action(async (opts: { notebook: string; source: string; json: boolean }) => {
+      const profile = getProfileHint(program.opts());
+      await removeNotebookSource({
+        notebook: opts.notebook,
+        source: opts.source,
+        ...(profile !== undefined ? { profile } : {}),
+      });
+      emit(io, opts.json, `Removed source "${opts.source}"`, {
+        notebook: opts.notebook,
+        source: opts.source,
+        removed: true,
+      });
+    });
 
   sources
     .command("add")
@@ -407,7 +304,6 @@ export function buildProgram(io: IO = defaultIO): Command {
     .option("--text <content>", "text content to add as a source")
     .option("--text-file <path>", 'read text source from a file ("-" for stdin)')
     .option("--url <url>", "URL to add as a source")
-    .option("--transport <t>", "applescript (only)", parseTransport, "applescript")
     .option("--json", "machine-readable output", false)
     .action(
       async (opts: {
@@ -415,14 +311,8 @@ export function buildProgram(io: IO = defaultIO): Command {
         text?: string;
         textFile?: string;
         url?: string;
-        transport: Transport;
         json: boolean;
       }) => {
-        if (opts.transport !== "applescript") {
-          throw new AichatctlError(
-            "NotebookLM is supported only via the AppleScript transport. Re-run with --transport applescript.",
-          );
-        }
         const flagCount =
           (opts.url !== undefined ? 1 : 0) +
           (opts.textFile !== undefined ? 1 : 0) +
@@ -464,7 +354,6 @@ export function buildProgram(io: IO = defaultIO): Command {
     .option("--length <length>", "short | default | long", "default")
     .option("--prompt <text>", "what the AI hosts should focus on")
     .option("--prompt-file <path>", 'read the host-focus prompt from a file ("-" for stdin)')
-    .option("--transport <t>", "applescript (only)", parseTransport, "applescript")
     .option("--json", "machine-readable output", false)
     .action(
       async (opts: {
@@ -473,14 +362,8 @@ export function buildProgram(io: IO = defaultIO): Command {
         length: string;
         prompt?: string;
         promptFile?: string;
-        transport: Transport;
         json: boolean;
       }) => {
-        if (opts.transport !== "applescript") {
-          throw new AichatctlError(
-            "NotebookLM is supported only via the AppleScript transport. Re-run with --transport applescript.",
-          );
-        }
         const format = parseAudioFormat(opts.type);
         const length = parseAudioLength(opts.length);
         const prompt =

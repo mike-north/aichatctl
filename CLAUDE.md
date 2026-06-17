@@ -36,21 +36,16 @@ The CLI and MCP packages depend on the SDK via `workspace:*`. The plugin is buil
 
 ### SDK internals (`packages/sdk/src/`)
 
-**Transports** — how we talk to Chrome:
+**Transport** — how we talk to Chrome:
 
-- `applescript/` — `osascript` injects JS into the user's real Chrome tab (macOS only, primary)
-- `browser/` — Playwright CDP connection to a dedicated automation Chrome profile (fallback, cross-platform)
+- `applescript/` — `osascript` injects JS into the user's real Chrome tab (macOS only)
 
 **Drivers** — platform-specific DOM mechanics:
 
-- `drivers/claude/` — Claude.ai driver + `selectors.ts`
-- `drivers/chatgpt/` — ChatGPT driver + `selectors.ts`
-- `drivers/notebooklm/` — NotebookLM driver (sources, audio overview)
-- `drivers/applescript/` — AppleScript-transport driver (wraps platform drivers)
-- `drivers/base.ts` — shared utilities
-- `drivers/factory.ts` — `createDriver(platform, session)` dispatcher
+- `drivers/applescript/` — drives Claude.ai, ChatGPT, and Gemini in the user's real Chrome via `osascript` (implements the `Driver` interface)
+- `drivers/notebooklm/` — standalone NotebookLM driver (sources, audio overview, status)
 
-Each driver implements the `Driver` interface (`drivers/driver.ts`). Selectors are isolated in a sibling `selectors.ts` — when a web UI drifts, it's a one-file fix.
+When a web UI drifts and a control stops resolving, commands fail with a clear `(calibration)` error naming what wasn't found; the page-level selectors live inline in each driver, so it's a one-file fix.
 
 **Sync engine** (`sync/`):
 
@@ -67,7 +62,6 @@ Each driver implements the `Driver` interface (`drivers/driver.ts`). Selectors a
 
 - `Platform`: `"claude" | "chatgpt" | "gemini"` — Gemini is seed-sessions only
 - `Driver`: the full platform driver interface (list/resolve projects, CRUD files, seed sessions)
-- `NamedSelector`: self-describing locator used by drivers and `selftest`/`doctor`
 
 ## Conventions
 

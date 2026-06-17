@@ -20,17 +20,17 @@ aichatctl notebook create \
 
 # Seed a Claude chat to continue by voice on mobile
 aichatctl session create --platform claude --project "My Project" \
-  --transport applescript --seed-file notes.md --json
+  --seed-file notes.md --json
 
 # Mirror repo files into a project's file library
-aichatctl sync --transport applescript --dry-run
+aichatctl sync --dry-run
 ```
 
-Requires **macOS** for the primary (extension-free) transport and a Chrome toggle
-(View → Developer → Allow JavaScript from Apple Events); a CDP fallback covers other
-platforms. Run `aichatctl doctor --transport applescript` to check readiness.
+Requires **macOS** (drives Chrome via `osascript`) and a Chrome toggle
+(View → Developer → Allow JavaScript from Apple Events). Run `aichatctl doctor --json`
+to check readiness.
 
-Full documentation, configuration, the transport model, and the security/scope
+Full documentation, configuration, and the security/scope
 notes are in the [project README](https://github.com/mike-north/aichatctl#readme).
 
 MIT © Mike North

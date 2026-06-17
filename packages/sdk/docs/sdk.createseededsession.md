@@ -4,7 +4,7 @@
 
 ## createSeededSession() function
 
-Creates a seeded chat session in a project on the given platform.
+Creates a seeded chat session in a project by driving the user's real, logged-in Chrome via AppleScript (`osascript`<!-- -->). Requires Chrome's "Allow JavaScript from Apple Events" (macOS).
 
 **Signature:**
 

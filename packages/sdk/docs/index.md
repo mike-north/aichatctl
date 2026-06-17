@@ -24,7 +24,7 @@ Description
 
 </td><td>
 
-`@aichatctl/sdk` — the engine for driving the Claude.ai and ChatGPT web UIs from agents: attach to Chrome over CDP, drive per-platform DOM flows, and reconcile project file libraries against a local source of truth.
+`@aichatctl/sdk` — the engine for driving the Claude.ai, ChatGPT, and NotebookLM web UIs from agents: drive the user's real, logged-in Chrome via AppleScript (`osascript`<!-- -->) and reconcile project file libraries against a local source of truth.
 
 
 </td></tr>

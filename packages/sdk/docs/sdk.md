@@ -4,7 +4,7 @@
 
 ## sdk package
 
-`@aichatctl/sdk` — the engine for driving the Claude.ai and ChatGPT web UIs from agents: attach to Chrome over CDP, drive per-platform DOM flows, and reconcile project file libraries against a local source of truth.
+`@aichatctl/sdk` — the engine for driving the Claude.ai, ChatGPT, and NotebookLM web UIs from agents: drive the user's real, logged-in Chrome via AppleScript (`osascript`<!-- -->) and reconcile project file libraries against a local source of truth.
 
 ## Classes
 
@@ -56,30 +56,6 @@ Thrown when osascript / Chrome automation fails.
 </td></tr>
 <tr><td>
 
-[BrowserNotReachableError](./sdk.browsernotreachableerror.md)
-
-
-</td><td>
-
-Thrown when no CDP endpoint can be reached (Chrome not launched with debugging).
-
-
-</td></tr>
-<tr><td>
-
-[BrowserSession](./sdk.browsersession.md)
-
-
-</td><td>
-
-Owns a CDP connection to the user's real Chrome and hands out pages.
-
-Attaching (rather than launching a throwaway Chromium) reuses the user's logged-in cookies. `close()` disconnects without closing the browser.
-
-
-</td></tr>
-<tr><td>
-
 [ConfigError](./sdk.configerror.md)
 
 
@@ -124,17 +100,6 @@ Thrown when a referenced project cannot be found in the UI.
 </td></tr>
 <tr><td>
 
-[SelectorError](./sdk.selectorerror.md)
-
-
-</td><td>
-
-Thrown when a centralized selector fails to resolve, indicating UI drift.
-
-
-</td></tr>
-<tr><td>
-
 [UnsupportedOperationError](./sdk.unsupportedoperationerror.md)
 
 
@@ -172,19 +137,6 @@ Adds a source to a notebook and waits for NotebookLM to auto-generate its title.
 </td></tr>
 <tr><td>
 
-[chromeProfileDir()](./sdk.chromeprofiledir.md)
-
-
-</td><td>
-
-Dedicated Chrome user-data directory used by the automation browser.
-
-Recent Chrome refuses `--remote-debugging-port` on the default profile for security, so we use an isolated profile the user signs into once.
-
-
-</td></tr>
-<tr><td>
-
 [computePlan(input)](./sdk.computeplan.md)
 
 
@@ -211,17 +163,6 @@ Root config directory for aichatctl (honors XDG\_CONFIG\_HOME).
 </td></tr>
 <tr><td>
 
-[createDriver(platform, session)](./sdk.createdriver.md)
-
-
-</td><td>
-
-Constructs the driver for a platform, bound to a browser session.
-
-
-</td></tr>
-<tr><td>
-
 [createEmptyNotebook(options)](./sdk.createemptynotebook.md)
 
 
@@ -238,18 +179,7 @@ Creates an empty NotebookLM notebook, optionally naming it. AppleScript transpor
 
 </td><td>
 
-Creates a seeded chat session in a project on the given platform.
-
-
-</td></tr>
-<tr><td>
-
-[createSeededSessionViaApplescript(options)](./sdk.createseededsessionviaapplescript.md)
-
-
-</td><td>
-
-Creates a seeded session by driving the user's real Chrome with no extension, via AppleScript (`osascript`<!-- -->). For locked-down environments where apps are installable but Chrome extensions are not. Requires Chrome's "Allow JavaScript from Apple Events".
+Creates a seeded chat session in a project by driving the user's real, logged-in Chrome via AppleScript (`osascript`<!-- -->). Requires Chrome's "Allow JavaScript from Apple Events" (macOS).
 
 
 </td></tr>
@@ -279,17 +209,6 @@ Reads Chrome's `Local State` for profile metadata (no tabs opened). Then maps ea
 </td></tr>
 <tr><td>
 
-[doctor(options)](./sdk.doctor.md)
-
-
-</td><td>
-
-Runs end-to-end health checks: CDP reachability plus a per-platform selftest (login state + smoke selectors). Never throws for an unreachable browser — the unreachable state is reported in the result.
-
-
-</td></tr>
-<tr><td>
-
 [doctorApplescript(platforms)](./sdk.doctorapplescript.md)
 
 
@@ -307,17 +226,6 @@ Preflight for the AppleScript transport: verifies Chrome's JS-from-Apple-Events 
 </td><td>
 
 Executes `jsCode` in the matching Chrome tab and returns its string result.
-
-
-</td></tr>
-<tr><td>
-
-[findChromeExecutable()](./sdk.findchromeexecutable.md)
-
-
-</td><td>
-
-Resolves the path to an installed Google Chrome executable, or undefined.
 
 
 </td></tr>
@@ -380,30 +288,6 @@ Computes the content hash of a file on disk.
 </td></tr>
 <tr><td>
 
-[isCdpReachable(port)](./sdk.iscdpreachable.md)
-
-
-</td><td>
-
-Probes whether a CDP endpoint is reachable on the given port.
-
-
-</td></tr>
-<tr><td>
-
-[launchChrome(options)](./sdk.launchchrome.md)
-
-
-</td><td>
-
-Launches the user's installed Google Chrome with remote debugging enabled, using a dedicated automation profile so it does not collide with everyday browsing and is permitted to expose the debugging port.
-
-The process is detached so it outlives the calling CLI invocation.
-
-
-</td></tr>
-<tr><td>
-
 [listNotebookSources(options)](./sdk.listnotebooksources.md)
 
 
@@ -420,7 +304,7 @@ Lists the display names of sources in a notebook. AppleScript transport only (ma
 
 </td><td>
 
-Lists projects on a platform.
+Lists projects on a platform (drives the user's real Chrome via AppleScript).
 
 
 </td></tr>
@@ -574,7 +458,7 @@ Runs a raw AppleScript (e.g. System Events keystrokes) and returns stdout.
 
 </td><td>
 
-Syncs every platform configured in the manifest (or the requested subset). For a dry run no browser mutations occur, but the live browser is still used to read the current remote file list for accurate planning.
+Syncs every platform configured in the manifest (or the requested subset) by driving the user's real, logged-in Chrome via AppleScript. For a dry run no browser mutations occur, but the live browser is still read to compute an accurate plan.
 
 
 </td></tr>
@@ -685,28 +569,6 @@ A discovered Chrome profile with its associated window IDs.
 </td></tr>
 <tr><td>
 
-[ConnectionOptions](./sdk.connectionoptions.md)
-
-
-</td><td>
-
-Common connection options.
-
-
-</td></tr>
-<tr><td>
-
-[ConnectOptions](./sdk.connectoptions.md)
-
-
-</td><td>
-
-Options for attaching to a running Chrome over CDP.
-
-
-</td></tr>
-<tr><td>
-
 [CreateNotebookOptions](./sdk.createnotebookoptions.md)
 
 
@@ -740,34 +602,12 @@ A local file selected for sync: its remote name and current content hash.
 </td></tr>
 <tr><td>
 
-[DoctorOptions](./sdk.doctoroptions.md)
-
-
-</td><td>
-
-Options for [doctor()](./sdk.doctor.md)<!-- -->.
-
-
-</td></tr>
-<tr><td>
-
-[DoctorReport](./sdk.doctorreport.md)
-
-
-</td><td>
-
-Aggregated health report for `aichatctl doctor`<!-- -->.
-
-
-</td></tr>
-<tr><td>
-
 [Driver](./sdk.driver.md)
 
 
 </td><td>
 
-Platform driver: all deterministic, DOM-level mechanics for one web AI chat platform. Implementations keep every locator in a sibling `selectors.ts` so UI drift is a one-file fix.
+Platform driver: all deterministic, DOM-level mechanics for one web AI chat platform, driven through the AppleScript transport (the user's real, logged-in Chrome). NotebookLM has its own standalone driver.
 
 
 </td></tr>
@@ -790,28 +630,6 @@ Options for [generateNotebookPodcast()](./sdk.generatenotebookpodcast.md)<!-- --
 </td><td>
 
 Planned disposition of the project instructions.
-
-
-</td></tr>
-<tr><td>
-
-[LaunchChromeOptions](./sdk.launchchromeoptions.md)
-
-
-</td><td>
-
-Options for launching the automation Chrome instance.
-
-
-</td></tr>
-<tr><td>
-
-[LaunchChromeResult](./sdk.launchchromeresult.md)
-
-
-</td><td>
-
-Result of a launch attempt.
 
 
 </td></tr>
@@ -845,17 +663,6 @@ Options for [listNotebookSources()](./sdk.listnotebooksources.md)<!-- -->.
 </td><td>
 
 A validated manifest plus the directory it was loaded from.
-
-
-</td></tr>
-<tr><td>
-
-[NamedSelector](./sdk.namedselector.md)
-
-
-</td><td>
-
-A named, self-describing locator used by a driver and by selftest.
 
 
 </td></tr>
@@ -1050,39 +857,6 @@ Options for [createSeededSession()](./sdk.createseededsession.md)<!-- -->.
 </td></tr>
 <tr><td>
 
-[SeedViaApplescriptOptions](./sdk.seedviaapplescriptoptions.md)
-
-
-</td><td>
-
-Options for [createSeededSessionViaApplescript()](./sdk.createseededsessionviaapplescript.md)<!-- -->.
-
-
-</td></tr>
-<tr><td>
-
-[SelectorProbe](./sdk.selectorprobe.md)
-
-
-</td><td>
-
-Outcome of probing one named selector during a selftest.
-
-
-</td></tr>
-<tr><td>
-
-[SelftestResult](./sdk.selftestresult.md)
-
-
-</td><td>
-
-Result of a driver selftest, used by `aichatctl doctor`<!-- -->.
-
-
-</td></tr>
-<tr><td>
-
 [SyncOptions](./sdk.syncoptions.md)
 
 
@@ -1159,17 +933,6 @@ Format value → the clickable Format card label in the NotebookLM UI.
 </td><td>
 
 Length value → the Length control label in the NotebookLM UI.
-
-
-</td></tr>
-<tr><td>
-
-[DEFAULT\_CDP\_PORT](./sdk.default_cdp_port.md)
-
-
-</td><td>
-
-Default CDP remote-debugging port the SDK attaches to.
 
 
 </td></tr>
