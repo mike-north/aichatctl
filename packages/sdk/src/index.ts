@@ -37,6 +37,9 @@ export type {
   AudioOverviewFormat,
   AudioOverviewLength,
   AudioOverviewOptions,
+  NotebookArtifact,
+  NotebookArtifactState,
+  NotebookArtifactType,
   NotebookSource,
 } from "./drivers/notebooklm/types.js";
 export { evalInChromeTab, runAppleScript, AppleScriptError } from "./applescript/runner.js";

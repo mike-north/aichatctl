@@ -334,6 +334,17 @@ Generates an Audio Overview (podcast) on an existing notebook that already has s
 </td></tr>
 <tr><td>
 
+[getNotebookStatus(options)](./sdk.getnotebookstatus.md)
+
+
+</td><td>
+
+Reports the artifacts (Audio Overviews, …) in a notebook's Studio panel with a best-effort `type`<!-- -->/`state`<!-- -->. AppleScript transport only (macOS).
+
+
+</td></tr>
+<tr><td>
+
 [getVersion()](./sdk.getversion.md)
 
 
@@ -861,6 +872,17 @@ A NotebookLM notebook resolved from the URL after creation.
 </td></tr>
 <tr><td>
 
+[NotebookArtifact](./sdk.notebookartifact.md)
+
+
+</td><td>
+
+One artifact in a notebook's Studio panel.
+
+
+</td></tr>
+<tr><td>
+
 [NotebookResult](./sdk.notebookresult.md)
 
 
@@ -878,6 +900,28 @@ Result of [createEmptyNotebook()](./sdk.createemptynotebook.md)<!-- -->.
 </td><td>
 
 Result of [listNotebookSources()](./sdk.listnotebooksources.md)<!-- -->.
+
+
+</td></tr>
+<tr><td>
+
+[NotebookStatusOptions](./sdk.notebookstatusoptions.md)
+
+
+</td><td>
+
+Options for [getNotebookStatus()](./sdk.getnotebookstatus.md)<!-- -->.
+
+
+</td></tr>
+<tr><td>
+
+[NotebookStatusResult](./sdk.notebookstatusresult.md)
+
+
+</td><td>
+
+Result of [getNotebookStatus()](./sdk.getnotebookstatus.md)<!-- -->.
 
 
 </td></tr>
@@ -1185,6 +1229,28 @@ Audio Overview format ("podcast type") — the Format cards in the dialog.
 </td><td>
 
 Audio Overview length control.
+
+
+</td></tr>
+<tr><td>
+
+[NotebookArtifactState](./sdk.notebookartifactstate.md)
+
+
+</td><td>
+
+Best-effort readiness of a Studio artifact.
+
+
+</td></tr>
+<tr><td>
+
+[NotebookArtifactType](./sdk.notebookartifacttype.md)
+
+
+</td><td>
+
+Best-effort classification of a Studio artifact. `"audio-overview"` today; the union grows as new artifact kinds are recognized.
 
 
 </td></tr>
