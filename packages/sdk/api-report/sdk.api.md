@@ -45,6 +45,10 @@ export class AppleScriptDriver implements Driver {
     createSeededSession(project: Project, prompt: string, options: CreateSessionOptions): Promise<SeedResult>;
     // (undocumented)
     deleteProjectFile(project: Project, remoteName: string): Promise<void>;
+    getLastAssistantMessage(ref: string): Promise<{
+        url: string;
+        text: string;
+    }>;
     // (undocumented)
     getProjectFiles(project: Project): Promise<RemoteFile[]>;
     // (undocumented)
@@ -405,6 +409,26 @@ export interface ProjectRef {
     // (undocumented)
     readonly platform: Platform;
     readonly project: string;
+}
+
+// @public
+export function pullConversation(options: PullConversationOptions): Promise<PullConversationResult>;
+
+// @public
+export interface PullConversationOptions {
+    readonly conversation: string;
+    readonly platform: Platform;
+    readonly skipLoginCheck?: boolean;
+}
+
+// @public
+export interface PullConversationResult {
+    // (undocumented)
+    readonly platform: Platform;
+    // (undocumented)
+    readonly text: string;
+    // (undocumented)
+    readonly url: string;
 }
 
 // @public

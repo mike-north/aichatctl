@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 
 import { resolveProfile } from "./applescript/profile.js";
 import type { ProfileHint } from "./applescript/profile.js";
+import { parseConversationRef } from "./drivers/applescript/conversation.js";
 import { AppleScriptDriver } from "./drivers/applescript/driver.js";
 import type { Driver } from "./drivers/driver.js";
 import { NotebookLmDriver } from "./drivers/notebooklm/driver.js";
@@ -370,4 +371,41 @@ export async function getNotebookStatus(
   }
   const artifacts = await driver.listArtifacts(nb);
   return { notebook: nb, artifacts };
+}
+
+/** Options for {@link pullConversation}. */
+export interface PullConversationOptions {
+  /** Conversation platform (claude | chatgpt). */
+  readonly platform: Platform;
+  /** Conversation URL or id. */
+  readonly conversation: string;
+  /** Skip the logged-in precondition check. */
+  readonly skipLoginCheck?: boolean;
+}
+
+/** Result of {@link pullConversation}. */
+export interface PullConversationResult {
+  readonly platform: Platform;
+  readonly url: string;
+  readonly text: string;
+}
+
+/**
+ * Reads the latest assistant message from a Claude/ChatGPT conversation back to
+ * the caller. AppleScript transport only (macOS). Gemini is unsupported.
+ */
+export async function pullConversation(
+  options: PullConversationOptions,
+): Promise<PullConversationResult> {
+  if (options.platform === "gemini") {
+    throw new AichatctlError("conversation pull supports only claude and chatgpt.");
+  }
+  // Parse first so an invalid ref fails fast (before any osascript).
+  parseConversationRef(options.platform, options.conversation);
+  const driver = new AppleScriptDriver(options.platform);
+  if (options.skipLoginCheck !== true && !(await driver.isLoggedIn())) {
+    throw new NotLoggedInError(options.platform);
+  }
+  const { url, text } = await driver.getLastAssistantMessage(options.conversation);
+  return { platform: options.platform, url, text };
 }

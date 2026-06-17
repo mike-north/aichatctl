@@ -387,6 +387,17 @@ True when a plan contains at least one mutating step.
 </td></tr>
 <tr><td>
 
+[pullConversation(options)](./sdk.pullconversation.md)
+
+
+</td><td>
+
+Reads the latest assistant message from a Claude/ChatGPT conversation back to the caller. AppleScript transport only (macOS). Gemini is unsupported.
+
+
+</td></tr>
+<tr><td>
+
 [readPromptSource(source)](./sdk.readpromptsource.md)
 
 
@@ -530,7 +541,7 @@ Result of [addNotebookSource()](./sdk.addnotebooksource.md)<!-- -->.
 
 </td><td>
 
-Readiness report for `doctor --transport applescript`<!-- -->.
+Readiness report for `aichatctl doctor`<!-- -->.
 
 
 </td></tr>
@@ -773,6 +784,28 @@ A project (a.k.a. "Project" on Claude.ai / ChatGPT) as seen in the web UI.
 </td><td>
 
 Identifies a project either by its display name or by URL/id.
+
+
+</td></tr>
+<tr><td>
+
+[PullConversationOptions](./sdk.pullconversationoptions.md)
+
+
+</td><td>
+
+Options for [pullConversation()](./sdk.pullconversation.md)<!-- -->.
+
+
+</td></tr>
+<tr><td>
+
+[PullConversationResult](./sdk.pullconversationresult.md)
+
+
+</td><td>
+
+Result of [pullConversation()](./sdk.pullconversation.md)<!-- -->.
 
 
 </td></tr>
