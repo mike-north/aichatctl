@@ -4,7 +4,7 @@
 
 ## listProjects() function
 
-Lists projects on a platform.
+Lists projects on a platform (drives the user's real Chrome via AppleScript).
 
 **Signature:**
 

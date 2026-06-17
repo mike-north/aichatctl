@@ -4,9 +4,6 @@
 
 ```ts
 
-import type { BrowserContext } from 'playwright-core';
-import { Locator } from 'playwright-core';
-import type { Page } from 'playwright-core';
 import { z } from 'zod';
 
 // @public
@@ -61,8 +58,6 @@ export class AppleScriptDriver implements Driver {
     // (undocumented)
     resolveProject(ref: string): Promise<Project>;
     // (undocumented)
-    selftest(): Promise<SelftestResult>;
-    // (undocumented)
     setProjectInstructions(project: Project, text: string): Promise<void>;
     // (undocumented)
     uploadProjectFile(project: Project, localPath: string): Promise<void>;
@@ -106,25 +101,6 @@ export interface AudioOverviewOptions {
 }
 
 // @public
-export class BrowserNotReachableError extends AichatctlError {
-    constructor(endpoint: string, options?: {
-        cause?: unknown;
-    });
-    // (undocumented)
-    readonly endpoint: string;
-    // (undocumented)
-    readonly name = "BrowserNotReachableError";
-}
-
-// @public
-export class BrowserSession {
-    close(): Promise<void>;
-    static connect(options?: ConnectOptions): Promise<BrowserSession>;
-    context(): BrowserContext;
-    newPage(url?: string): Promise<Page>;
-}
-
-// @public
 export interface ChromeProfile {
     // (undocumented)
     readonly email?: string;
@@ -137,9 +113,6 @@ export interface ChromeProfile {
 }
 
 // @public
-export function chromeProfileDir(): string;
-
-// @public
 export function computePlan(input: PlanInput): SyncStep[];
 
 // @public
@@ -150,21 +123,6 @@ export class ConfigError extends AichatctlError {
     // (undocumented)
     readonly name = "ConfigError";
 }
-
-// @public
-export interface ConnectionOptions {
-    // (undocumented)
-    readonly port?: number;
-}
-
-// @public
-export interface ConnectOptions {
-    readonly port?: number;
-    readonly timeoutMs?: number;
-}
-
-// @public
-export function createDriver(platform: Platform, session: BrowserSession): Driver;
 
 // @public
 export function createEmptyNotebook(options: CreateNotebookOptions): Promise<NotebookResult>;
@@ -180,15 +138,9 @@ export interface CreateNotebookOptions {
 export function createSeededSession(options: SeedSessionOptions): Promise<SeedResult>;
 
 // @public
-export function createSeededSessionViaApplescript(options: SeedViaApplescriptOptions): Promise<SeedResult>;
-
-// @public
 export interface CreateSessionOptions {
     readonly send: boolean;
 }
-
-// @public
-export const DEFAULT_CDP_PORT = 9222;
 
 // @public
 export function defaultStatePath(baseDir: string): string;
@@ -205,28 +157,7 @@ export interface DesiredFile {
 export function discoverProfiles(): Promise<ChromeProfile[]>;
 
 // @public
-export function doctor(options?: DoctorOptions): Promise<DoctorReport>;
-
-// @public
 export function doctorApplescript(platforms?: readonly Platform[]): Promise<ApplescriptDoctorReport>;
-
-// @public
-export interface DoctorOptions {
-    readonly platforms?: readonly Platform[];
-    // (undocumented)
-    readonly port?: number;
-}
-
-// @public
-export interface DoctorReport {
-    // (undocumented)
-    readonly cdpPort: number;
-    // (undocumented)
-    readonly cdpReachable: boolean;
-    readonly ok: boolean;
-    // (undocumented)
-    readonly platforms: readonly SelftestResult[];
-}
 
 // @public
 export interface Driver {
@@ -239,7 +170,6 @@ export interface Driver {
     // (undocumented)
     readonly platform: Platform;
     resolveProject(ref: string): Promise<Project>;
-    selftest(): Promise<SelftestResult>;
     setProjectInstructions(project: Project, text: string): Promise<void>;
     uploadProjectFile(project: Project, localPath: string): Promise<void>;
 }
@@ -248,9 +178,6 @@ export interface Driver {
 //
 // @public
 export function evalInChromeTab(jsCode: string, options: EvalOptions): Promise<string>;
-
-// @public
-export function findChromeExecutable(): string | undefined;
 
 // @public
 export function generateNotebookPodcast(options: GeneratePodcastOptions): Promise<void>;
@@ -286,33 +213,13 @@ export interface InstructionsPlan {
 }
 
 // @public
-export function isCdpReachable(port?: number): Promise<boolean>;
-
-// @public
-export function launchChrome(options: LaunchChromeOptions): LaunchChromeResult;
-
-// @public
-export interface LaunchChromeOptions {
-    readonly executablePath?: string;
-    readonly port: number;
-    readonly userDataDir?: string;
-}
-
-// @public
-export interface LaunchChromeResult {
-    readonly executablePath: string;
-    readonly pid: number | undefined;
-    readonly userDataDir: string;
-}
-
-// @public
 export function listNotebookSources(options: ListSourcesOptions): Promise<NotebookSourcesResult>;
 
 // @public
 export function listProjects(options: ListProjectsOptions): Promise<Project[]>;
 
 // @public
-export interface ListProjectsOptions extends ConnectionOptions {
+export interface ListProjectsOptions {
     // (undocumented)
     readonly platform: Platform;
 }
@@ -341,13 +248,6 @@ export function loadState(path: string, platform: Platform, projectId: string): 
 
 // @public
 export function manifestForPlatform(manifest: LoadedManifest, platform: Platform): PlatformManifest;
-
-// @public
-export interface NamedSelector {
-    readonly describe: string;
-    locate(page: Page): Locator;
-    readonly name: string;
-}
 
 // @public
 export interface Notebook {
@@ -555,12 +455,11 @@ export function runAppleScript(script: string, timeoutMs?: number): Promise<stri
 export function runSync(options: RunSyncOptions): Promise<SyncReport[]>;
 
 // @public
-export interface RunSyncOptions extends ConnectionOptions {
+export interface RunSyncOptions {
     readonly configPath: string;
     readonly dryRun: boolean;
     readonly platforms?: readonly Platform[];
     readonly statePath?: string;
-    readonly transport?: "cdp" | "applescript";
 }
 
 // @public
@@ -573,57 +472,13 @@ export interface SeedResult {
 }
 
 // @public
-export interface SeedSessionOptions extends ConnectionOptions {
+export interface SeedSessionOptions {
     // (undocumented)
     readonly platform: Platform;
     readonly project: string;
     readonly prompt: string;
     readonly send: boolean;
     readonly skipLoginCheck?: boolean;
-}
-
-// @public
-export interface SeedViaApplescriptOptions {
-    // (undocumented)
-    readonly platform: Platform;
-    // (undocumented)
-    readonly project: string;
-    // (undocumented)
-    readonly prompt: string;
-    // (undocumented)
-    readonly send: boolean;
-    // (undocumented)
-    readonly skipLoginCheck?: boolean;
-}
-
-// @public
-export class SelectorError extends AichatctlError {
-    constructor(platform: string, selectorName: string);
-    // (undocumented)
-    readonly name = "SelectorError";
-    // (undocumented)
-    readonly platform: string;
-    // (undocumented)
-    readonly selectorName: string;
-}
-
-// @public
-export interface SelectorProbe {
-    // (undocumented)
-    readonly name: string;
-    // (undocumented)
-    readonly ok: boolean;
-}
-
-// @public
-export interface SelftestResult {
-    // (undocumented)
-    readonly loggedIn: boolean;
-    readonly ok: boolean;
-    // (undocumented)
-    readonly platform: Platform;
-    // (undocumented)
-    readonly probes: readonly SelectorProbe[];
 }
 
 // @public

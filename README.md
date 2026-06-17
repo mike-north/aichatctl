@@ -45,12 +45,11 @@ the one place `aichatctl` calls ChatGPT's own endpoint (via your live session). 
 
 ## Requirements
 
-- **macOS** for the primary (extension-free) transport — it uses `osascript`. The
-  CDP fallback works elsewhere and headless (see [Transports](#how-it-works)).
+- **macOS** — `aichatctl` uses `osascript` to drive your real Chrome tab. There is
+  no other transport.
 - **Node ≥ 22** (`npm i -g aichatctl`). `pnpm` is only needed to build from source.
 - **Google Chrome**, signed in to the services you target (it uses your real session).
-- One Chrome toggle for the AppleScript transport: **View → Developer → Allow
-  JavaScript from Apple Events**.
+- One Chrome toggle: **View → Developer → Allow JavaScript from Apple Events**.
 
 ## Quickstart
 
@@ -63,7 +62,7 @@ npm install -g aichatctl        # or: pnpm add -g aichatctl
 Enable the Chrome toggle above, then check you're ready:
 
 ```bash
-aichatctl doctor --transport applescript     # verifies the toggle + per-platform login
+aichatctl doctor --json     # verifies the toggle + per-platform login
 ```
 
 Make your first podcast (or seed your first session):
@@ -75,7 +74,7 @@ aichatctl notebook create --source README.md --source-url https://example.com \
 
 # Or: start a Claude chat seeded with a prompt, to continue by voice on mobile
 aichatctl session create --platform claude --project "My Project" \
-  --transport applescript --seed-file notes.md --json
+  --seed-file notes.md --json
 ```
 
 Each command prints JSON including the conversation/notebook `url` — open it on your
@@ -89,12 +88,10 @@ Starts a new chat in a project, pre-filled and submitted, so you can continue it
 from the mobile app (e.g. by voice).
 
 ```bash
-aichatctl session create --transport applescript \
-  --platform claude --project "My Project" --seed-file notes.md --json
+aichatctl session create --platform claude --project "My Project" --seed-file notes.md --json
 
 # Gemini is seed-only; --project is a Gem URL/id, or "new" for a plain chat
-aichatctl session create --transport applescript \
-  --platform gemini --project new --seed "Let's plan the week" --json
+aichatctl session create --platform gemini --project new --seed "Let's plan the week" --json
 ```
 
 `--project` takes a name, URL, or id. `--no-send` stages the prompt without
@@ -106,9 +103,9 @@ Mirror a declared set of repo files (and, optionally, the instructions) into a
 Claude/ChatGPT project so it tracks your git source of truth. Always preview first.
 
 ```bash
-aichatctl sync --transport applescript --dry-run     # show the upload/replace/delete plan
-aichatctl sync --transport applescript               # apply it
-aichatctl sync --transport applescript --platform chatgpt   # one platform only
+aichatctl sync --dry-run                    # show the upload/replace/delete plan
+aichatctl sync                              # apply it
+aichatctl sync --platform chatgpt          # one platform only
 ```
 
 Sync only ever deletes files **it** previously synced — anything you added by hand
@@ -155,17 +152,11 @@ background (minutes). Open the returned `url` on mobile to listen.
 
 ## How it works
 
-`aichatctl` drives your **real, logged-in Chrome** through one of two transports:
-
-- **AppleScript (primary, macOS).** `osascript` runs scripted JS in your tab — no
-  extension, no separate browser profile. It needs the one Chrome toggle above.
-  Because that call can't await promises, page code uses synchronous requests; file
-  operations use each product's own upload endpoints rather than the native file
-  picker (which would need Accessibility permission).
-- **CDP (fallback, default).** A Playwright connection to a dedicated automation
-  Chrome profile (`aichatctl browser launch`, then sign in once) — for non-macOS or
-  headless/unattended runs. Recent Chrome blocks remote debugging on the _default_
-  profile, which is why the fallback uses a dedicated one.
+`aichatctl` drives your **real, logged-in Chrome** via AppleScript (`osascript`) —
+macOS only, no extension, no separate browser profile. It needs the one Chrome toggle
+above. Because `osascript` can't await promises, page code uses synchronous requests;
+file operations use each product's own upload endpoints rather than the native file
+picker (which would need Accessibility permission).
 
 Two principles keep it robust and trustworthy:
 

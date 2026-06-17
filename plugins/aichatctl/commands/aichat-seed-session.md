@@ -14,15 +14,14 @@ Steps:
    on, relevant notes, the question or task they'd want to talk through. This is
    the part that needs your reasoning. Write it to `scratch/seed.md`.
 2. Show the user the prompt you composed and confirm the target project.
-3. Create the session (use the AppleScript transport on macOS; it needs Chrome's
+3. Create the session (`aichatctl` drives Chrome via AppleScript; it needs Chrome's
    "Allow JavaScript from Apple Events" toggle — preflight with
-   `aichatctl doctor --transport applescript --json`):
+   `aichatctl doctor --json`):
    ```bash
-   aichatctl session create --transport applescript --platform <p> --project "<ref>" --seed-file scratch/seed.md --json
+   aichatctl session create --platform <p> --project "<ref>" --seed-file scratch/seed.md --json
    ```
    If `doctor` reports the toggle is off or the platform isn't logged in, tell the
-   user how to fix it, then retry. (On non-macOS, use `--transport cdp` after
-   `aichatctl browser launch`; Gemini supports AppleScript only.)
+   user how to fix it, then retry.
 4. Return the conversation `url` from the JSON and tell the user they can open it in
    the mobile app and tap voice to continue.
 

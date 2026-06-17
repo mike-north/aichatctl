@@ -9,9 +9,8 @@ Options for [listProjects()](./sdk.listprojects.md)<!-- -->.
 **Signature:**
 
 ```typescript
-export interface ListProjectsOptions extends ConnectionOptions 
+export interface ListProjectsOptions 
 ```
-**Extends:** [ConnectionOptions](./sdk.connectionoptions.md)
 
 ## Properties
 

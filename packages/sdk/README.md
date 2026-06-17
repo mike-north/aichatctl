@@ -1,8 +1,8 @@
 # @aichatctl/sdk
 
 The engine behind [`aichatctl`](https://www.npmjs.com/package/aichatctl) — drivers
-for the Claude.ai, ChatGPT, Gemini, and NotebookLM web UIs, the browser transports
-(AppleScript + CDP), and the file-sync engine.
+for the Claude.ai, ChatGPT, Gemini, and NotebookLM web UIs, the AppleScript
+transport, and the file-sync engine.
 
 Most people want the CLI (`npm i -g aichatctl`) or the
 [MCP server](https://www.npmjs.com/package/@aichatctl/mcp). Use this package
@@ -27,7 +27,7 @@ console.log(url);
 ```
 
 The public API is tracked with API Extractor; see the
-[project README](https://github.com/mike-north/aichatctl#readme) for the transport
-model, requirements, and security notes.
+[project README](https://github.com/mike-north/aichatctl#readme) for requirements
+and security notes.
 
 MIT © Mike North

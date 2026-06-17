@@ -197,18 +197,6 @@ Description
 </td></tr>
 <tr><td>
 
-[selftest()](./sdk.applescriptdriver.selftest.md)
-
-
-</td><td>
-
-
-</td><td>
-
-
-</td></tr>
-<tr><td>
-
 [setProjectInstructions(project, text)](./sdk.applescriptdriver.setprojectinstructions.md)
 
 

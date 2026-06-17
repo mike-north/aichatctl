@@ -9,9 +9,8 @@ Options for [runSync()](./sdk.runsync.md)<!-- -->.
 **Signature:**
 
 ```typescript
-export interface RunSyncOptions extends ConnectionOptions 
+export interface RunSyncOptions 
 ```
-**Extends:** [ConnectionOptions](./sdk.connectionoptions.md)
 
 ## Properties
 
@@ -117,27 +116,6 @@ string
 </td><td>
 
 _(Optional)_ Override the sync-state file path.
-
-
-</td></tr>
-<tr><td>
-
-[transport?](./sdk.runsyncoptions.transport.md)
-
-
-</td><td>
-
-`readonly`
-
-
-</td><td>
-
-"cdp" \| "applescript"
-
-
-</td><td>
-
-_(Optional)_ How to drive the browser: CDP (dedicated profile) or AppleScript (real Chrome, macOS).
 
 
 </td></tr>

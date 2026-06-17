@@ -4,7 +4,7 @@ import { basename, extname } from "node:path";
 import { evalInChromeTab } from "../../applescript/runner.js";
 import { AichatctlError, ProjectNotFoundError, UnsupportedOperationError } from "../../errors.js";
 import type { Platform, Project, RemoteFile, SeedResult } from "../../types.js";
-import type { CreateSessionOptions, Driver, SelftestResult } from "../driver.js";
+import type { CreateSessionOptions, Driver } from "../driver.js";
 
 const MIME_BY_EXT: Record<string, string> = {
   ".md": "text/markdown",
@@ -139,16 +139,6 @@ export class AppleScriptDriver implements Driver {
     })();
     const r = (await this.#evalBase(probe)) as { v: boolean };
     return r.v;
-  }
-
-  public async selftest(): Promise<SelftestResult> {
-    const loggedIn = await this.isLoggedIn();
-    return {
-      platform: this.platform,
-      loggedIn,
-      probes: [{ name: "login", ok: loggedIn }],
-      ok: loggedIn,
-    };
   }
 
   public async listProjects(): Promise<Project[]> {

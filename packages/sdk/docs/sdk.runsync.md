@@ -4,7 +4,7 @@
 
 ## runSync() function
 
-Syncs every platform configured in the manifest (or the requested subset). For a dry run no browser mutations occur, but the live browser is still used to read the current remote file list for accurate planning.
+Syncs every platform configured in the manifest (or the requested subset) by driving the user's real, logged-in Chrome via AppleScript. For a dry run no browser mutations occur, but the live browser is still read to compute an accurate plan.
 
 **Signature:**
 
