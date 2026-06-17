@@ -61,3 +61,32 @@ export function parseAudioLength(value: string): AudioOverviewLength {
   }
   throw new AichatctlError(`length must be one of: ${Object.keys(AUDIO_LENGTH_LABEL).join(", ")}`);
 }
+
+/** Best-effort classification of a Studio artifact. `"audio-overview"` today; the union grows as new artifact kinds are recognized. */
+export type NotebookArtifactType = "audio-overview" | "unknown";
+
+/** Best-effort readiness of a Studio artifact. */
+export type NotebookArtifactState = "generating" | "ready" | "failed";
+
+/** One artifact in a notebook's Studio panel. */
+export interface NotebookArtifact {
+  readonly type: NotebookArtifactType;
+  readonly title: string;
+  readonly state: NotebookArtifactState;
+}
+
+/** Maps a raw tile label/type hint to a {@link NotebookArtifactType}. Unknown kinds fall back to `"unknown"`. */
+export function coerceArtifactType(raw: string): NotebookArtifactType {
+  return /audio|overview|podcast/i.test(raw) ? "audio-overview" : "unknown";
+}
+
+/**
+ * Maps a tile's raw status text to a {@link NotebookArtifactState}. Failure cues
+ * are checked before generating cues (so "Error generating…" reads as failed); a
+ * tile with no progress/error text is treated as a settled, ready artifact.
+ */
+export function normalizeArtifactState(raw: string): NotebookArtifactState {
+  if (/fail|error/i.test(raw)) return "failed";
+  if (/generat|loading|creating|progress/i.test(raw)) return "generating";
+  return "ready";
+}
