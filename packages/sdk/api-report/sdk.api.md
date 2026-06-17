@@ -156,13 +156,9 @@ export interface CreateProjectOptions {
 
 // @public
 export interface CreateProjectResult {
-    // (undocumented)
-    readonly filesUploaded: string[];
-    // (undocumented)
+    readonly filesUploaded: readonly string[];
     readonly instructionsSet: boolean;
-    // (undocumented)
     readonly platform: Platform;
-    // (undocumented)
     readonly project: Project;
 }
 

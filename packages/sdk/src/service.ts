@@ -426,10 +426,14 @@ export interface CreateProjectOptions {
 
 /** Result of {@link createProject}. */
 export interface CreateProjectResult {
+  /** The platform the project was created on. */
   readonly platform: Platform;
+  /** The newly created project (id, name, URL). */
   readonly project: Project;
+  /** Whether custom instructions were set after creation. */
   readonly instructionsSet: boolean;
-  readonly filesUploaded: string[];
+  /** Base names of the files uploaded into the new project, in upload order. */
+  readonly filesUploaded: readonly string[];
 }
 
 /**

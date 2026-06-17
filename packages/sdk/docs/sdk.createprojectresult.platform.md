@@ -4,6 +4,8 @@
 
 ## CreateProjectResult.platform property
 
+The platform the project was created on.
+
 **Signature:**
 
 ```typescript

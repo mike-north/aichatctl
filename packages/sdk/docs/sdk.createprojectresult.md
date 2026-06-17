@@ -47,10 +47,12 @@ Description
 
 </td><td>
 
-string\[\]
+readonly string\[\]
 
 
 </td><td>
+
+Base names of the files uploaded into the new project, in upload order.
 
 
 </td></tr>
@@ -71,6 +73,8 @@ boolean
 
 </td><td>
 
+Whether custom instructions were set after creation.
+
 
 </td></tr>
 <tr><td>
@@ -90,6 +94,8 @@ boolean
 
 </td><td>
 
+The platform the project was created on.
+
 
 </td></tr>
 <tr><td>
@@ -108,6 +114,8 @@ boolean
 
 
 </td><td>
+
+The newly created project (id, name, URL).
 
 
 </td></tr>

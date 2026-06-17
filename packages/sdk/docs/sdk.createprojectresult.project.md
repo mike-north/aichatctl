@@ -4,6 +4,8 @@
 
 ## CreateProjectResult.project property
 
+The newly created project (id, name, URL).
+
 **Signature:**
 
 ```typescript

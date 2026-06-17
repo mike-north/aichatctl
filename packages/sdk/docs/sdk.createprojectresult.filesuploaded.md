@@ -4,8 +4,10 @@
 
 ## CreateProjectResult.filesUploaded property
 
+Base names of the files uploaded into the new project, in upload order.
+
 **Signature:**
 
 ```typescript
-readonly filesUploaded: string[];
+readonly filesUploaded: readonly string[];
 ```

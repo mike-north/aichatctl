@@ -4,6 +4,8 @@
 
 ## CreateProjectResult.instructionsSet property
 
+Whether custom instructions were set after creation.
+
 **Signature:**
 
 ```typescript
