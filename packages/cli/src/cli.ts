@@ -12,6 +12,7 @@ import {
   doctor,
   doctorApplescript,
   generateNotebookPodcast,
+  getNotebookStatus,
   launchChrome,
   listNotebookSources,
   listProjects,
@@ -321,6 +322,31 @@ export function buildProgram(io: IO = defaultIO): Command {
         });
       },
     );
+
+  notebook
+    .command("status")
+    .description("Report the state of a notebook's Studio artifacts (Audio Overviews, …)")
+    .requiredOption("--notebook <ref>", "notebook URL or UUID")
+    .option("--transport <t>", "applescript (only)", parseTransport, "applescript")
+    .option("--json", "machine-readable output", false)
+    .action(async (opts: { notebook: string; transport: Transport; json: boolean }) => {
+      if (opts.transport !== "applescript") {
+        throw new AichatctlError(
+          "NotebookLM is supported only via the AppleScript transport. Re-run with --transport applescript.",
+        );
+      }
+      const profile = getProfileHint(program.opts());
+      const result = await getNotebookStatus({
+        notebook: opts.notebook,
+        ...(profile !== undefined ? { profile } : {}),
+      });
+      const human = result.artifacts.length
+        ? result.artifacts
+            .map((a) => `${a.type.padEnd(16)} ${a.state.padEnd(10)} ${a.title}`)
+            .join("\n")
+        : "(no studio artifacts)";
+      emit(io, opts.json, human, result);
+    });
 
   const sources = notebook.command("sources").description("Manage notebook sources");
   sources
