@@ -165,4 +165,14 @@ describe("run", () => {
     const code = await run(argv("project", "create", "--platform", "claude"), io);
     expect(code).not.toBe(0);
   });
+
+  it("rejects an explicitly empty --instructions for project create", async () => {
+    const { io, err } = captureIO();
+    const code = await run(
+      argv("project", "create", "--platform", "claude", "--name", "P", "--instructions", "   "),
+      io,
+    );
+    expect(code).toBe(1);
+    expect(err.join("\n")).toMatch(/non-empty --instructions/);
+  });
 });

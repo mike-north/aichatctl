@@ -144,7 +144,12 @@ export function buildProgram(io: IO = defaultIO): Command {
     .requiredOption("--name <name>", "name for the new project")
     .option("--instructions <text>", "custom instructions text")
     .option("--instructions-file <path>", 'read instructions from a file ("-" for stdin)')
-    .option("--file <path>", "local file to upload into the project (repeatable)", collectRepeatable, [])
+    .option(
+      "--file <path>",
+      "local file to upload into the project (repeatable)",
+      collectRepeatable,
+      [],
+    )
     .option("--json", "machine-readable output", false)
     .action(
       async (opts: {
@@ -165,6 +170,15 @@ export function buildProgram(io: IO = defaultIO): Command {
           opts.instructionsFile !== undefined
             ? readPromptSource(opts.instructionsFile)
             : opts.instructions;
+        // If the user explicitly supplied an instructions source, fail loudly on
+        // empty content rather than silently creating the project with none.
+        if (instructions?.trim().length === 0) {
+          throw new AichatctlError(
+            opts.instructionsFile !== undefined
+              ? `The --instructions-file "${opts.instructionsFile}" is empty.`
+              : "Provide non-empty --instructions text.",
+          );
+        }
         const result = await createProject({
           platform: opts.platform,
           name: opts.name,
