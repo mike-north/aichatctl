@@ -163,3 +163,34 @@ export function scriptGetLatestSource(): string {
     const settled = latest.length > 0 && !/^pasted text$/i.test(latest);
     return JSON.stringify({ count: names.length, latestTitle: latest, settled: settled });`;
 }
+
+export interface ArtifactTile {
+  readonly title: string;
+  readonly rawType: string;
+  readonly rawState: string;
+}
+
+export interface ListArtifactsResult {
+  readonly tiles: ArtifactTile[];
+}
+
+// CALIBRATION: Studio artifact tiles. Verify against the live NotebookLM UI
+// during implementation; this is a best-effort starting selector.
+const STUDIO_TILE_SELECTOR = ["artifact-card", ".studio-panel mat-card", '[class*="artifact"]'].join(
+  ",",
+);
+
+export function scriptListArtifacts(): string {
+  return `
+    const tiles = document.querySelectorAll(${JSON.stringify(STUDIO_TILE_SELECTOR)});
+    const out = [];
+    for (const c of tiles) {
+      const titleEl = c.querySelector('[class*="title"], .title, h3, h2');
+      const title = ((titleEl || c).textContent || "").trim().split("\\n")[0];
+      const rawType = c.getAttribute("data-artifact-type") || (c.textContent || "");
+      const statusEl = c.querySelector('[class*="status"], [class*="progress"], .loading');
+      const rawState = ((statusEl && statusEl.textContent) || "").trim();
+      if (title) out.push({ title: title, rawType: rawType, rawState: rawState });
+    }
+    return JSON.stringify({ tiles: out });`;
+}
