@@ -174,6 +174,17 @@ Creates an empty NotebookLM notebook, optionally naming it. AppleScript transpor
 </td></tr>
 <tr><td>
 
+[createProject(options)](./sdk.createproject.md)
+
+
+</td><td>
+
+Creates a Claude/ChatGPT project, then (best-effort, in order) sets its instructions and uploads any seed files. The project is created first and persists even if a later step fails. AppleScript transport only (macOS).
+
+
+</td></tr>
+<tr><td>
+
 [createSeededSession(options)](./sdk.createseededsession.md)
 
 
@@ -586,6 +597,28 @@ A discovered Chrome profile with its associated window IDs.
 </td><td>
 
 Options for [createEmptyNotebook()](./sdk.createemptynotebook.md)<!-- -->.
+
+
+</td></tr>
+<tr><td>
+
+[CreateProjectOptions](./sdk.createprojectoptions.md)
+
+
+</td><td>
+
+Options for [createProject()](./sdk.createproject.md)<!-- -->.
+
+
+</td></tr>
+<tr><td>
+
+[CreateProjectResult](./sdk.createprojectresult.md)
+
+
+</td><td>
+
+Result of [createProject()](./sdk.createproject.md)<!-- -->.
 
 
 </td></tr>

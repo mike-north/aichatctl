@@ -394,6 +394,41 @@ export class AppleScriptDriver implements Driver {
       throw new AichatctlError(`Claude instructions save failed: ${saved.why ?? "unknown"}`);
   }
 
+  /**
+   * Creates a new project and returns it. Claude/ChatGPT only (Gemini has no
+   * project library). CALIBRATION: the create endpoints/payloads are verified
+   * against the live API during implementation.
+   */
+  public async createProject(name: string): Promise<Project> {
+    if (this.platform === "gemini") {
+      throw new UnsupportedOperationError("gemini", "createProject");
+    }
+    if (this.platform === "claude") {
+      const r = (await this.#evalBase(
+        `function sx(m,u,b,ct){var x=new XMLHttpRequest();x.open(m,u,false);if(ct)x.setRequestHeader('Content-Type',ct);x.send(b||null);return {status:x.status,text:x.responseText};}
+         var org=JSON.parse(sx('GET','/api/organizations').text)[0].uuid;
+         var resp=sx('POST','/api/organizations/'+org+'/projects',JSON.stringify({name:${JSON.stringify(name)},description:""}),'application/json');
+         if(resp.status<200||resp.status>=300)return JSON.stringify({ok:false,status:resp.status});
+         var p=JSON.parse(resp.text);return JSON.stringify({ok:true,id:p.uuid});`,
+      )) as { ok: boolean; id?: string; status?: number };
+      if (!r.ok || r.id === undefined) {
+        throw new AichatctlError(`Claude project create failed (HTTP ${String(r.status ?? "?")}).`);
+      }
+      return { id: r.id, name, url: projectUrl("claude", r.id) };
+    }
+    const r = (await this.#evalBase(
+      `function sx(m,u,t,b,ct){var x=new XMLHttpRequest();x.open(m,u,false);if(t)x.setRequestHeader('Authorization','Bearer '+t);if(ct)x.setRequestHeader('Content-Type',ct);x.send(b||null);return {status:x.status,text:x.responseText};}
+       var s=JSON.parse(sx('GET','/api/auth/session').text);var token=s.accessToken;
+       var resp=sx('POST','/backend-api/projects',token,JSON.stringify({name:${JSON.stringify(name)}}),'application/json');
+       if(resp.status<200||resp.status>=300)return JSON.stringify({ok:false,status:resp.status});
+       var p=JSON.parse(resp.text);return JSON.stringify({ok:true,id:p.id||(p.gizmo&&p.gizmo.id)});`,
+    )) as { ok: boolean; id?: string; status?: number };
+    if (!r.ok || r.id === undefined) {
+      throw new AichatctlError(`ChatGPT project create failed (HTTP ${String(r.status ?? "?")}).`);
+    }
+    return { id: r.id, name, url: projectUrl("chatgpt", r.id) };
+  }
+
   public async createSeededSession(
     project: Project,
     prompt: string,

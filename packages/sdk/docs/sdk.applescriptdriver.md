@@ -113,6 +113,20 @@ Description
 </th></tr></thead>
 <tbody><tr><td>
 
+[createProject(name)](./sdk.applescriptdriver.createproject.md)
+
+
+</td><td>
+
+
+</td><td>
+
+Creates a new project and returns it. Claude/ChatGPT only (Gemini has no project library). CALIBRATION: the create endpoints/payloads are verified against the live API during implementation.
+
+
+</td></tr>
+<tr><td>
+
 [createSeededSession(project, prompt, options)](./sdk.applescriptdriver.createseededsession.md)
 
 
