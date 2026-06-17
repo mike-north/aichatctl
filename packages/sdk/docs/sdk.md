@@ -392,7 +392,7 @@ True when a plan contains at least one mutating step.
 
 </td><td>
 
-Reads the latest assistant message from a Claude/ChatGPT conversation back to the caller. AppleScript transport only (macOS). Gemini is unsupported.
+Reads the latest assistant message from a Claude/ChatGPT conversation back to the caller, by driving the user's real, logged-in Chrome via AppleScript (macOS). Only Claude and ChatGPT are supported (see [ChatPlatform](./sdk.chatplatform.md)<!-- -->).
 
 
 </td></tr>
@@ -1025,6 +1025,17 @@ Audio Overview format ("podcast type") — the Format cards in the dialog.
 </td><td>
 
 Audio Overview length control.
+
+
+</td></tr>
+<tr><td>
+
+[ChatPlatform](./sdk.chatplatform.md)
+
+
+</td><td>
+
+Chat platforms that support conversation read-back.
 
 
 </td></tr>

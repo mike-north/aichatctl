@@ -4,7 +4,7 @@
 
 ## pullConversation() function
 
-Reads the latest assistant message from a Claude/ChatGPT conversation back to the caller. AppleScript transport only (macOS). Gemini is unsupported.
+Reads the latest assistant message from a Claude/ChatGPT conversation back to the caller, by driving the user's real, logged-in Chrome via AppleScript (macOS). Only Claude and ChatGPT are supported (see [ChatPlatform](./sdk.chatplatform.md)<!-- -->).
 
 **Signature:**
 

@@ -105,6 +105,9 @@ export interface AudioOverviewOptions {
 }
 
 // @public
+export type ChatPlatform = "claude" | "chatgpt";
+
+// @public
 export interface ChromeProfile {
     // (undocumented)
     readonly email?: string;
@@ -417,14 +420,14 @@ export function pullConversation(options: PullConversationOptions): Promise<Pull
 // @public
 export interface PullConversationOptions {
     readonly conversation: string;
-    readonly platform: Platform;
+    readonly platform: ChatPlatform;
     readonly skipLoginCheck?: boolean;
 }
 
 // @public
 export interface PullConversationResult {
     // (undocumented)
-    readonly platform: Platform;
+    readonly platform: ChatPlatform;
     // (undocumented)
     readonly text: string;
     // (undocumented)

@@ -68,12 +68,12 @@ Conversation URL or id.
 
 </td><td>
 
-[Platform](./sdk.platform.md)
+[ChatPlatform](./sdk.chatplatform.md)
 
 
 </td><td>
 
-Conversation platform (claude \| chatgpt).
+Conversation platform — read-back is supported only on Claude and ChatGPT.
 
 
 </td></tr>

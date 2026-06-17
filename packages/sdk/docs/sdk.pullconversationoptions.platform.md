@@ -4,10 +4,10 @@
 
 ## PullConversationOptions.platform property
 
-Conversation platform (claude \| chatgpt).
+Conversation platform — read-back is supported only on Claude and ChatGPT.
 
 **Signature:**
 
 ```typescript
-readonly platform: Platform;
+readonly platform: ChatPlatform;
 ```

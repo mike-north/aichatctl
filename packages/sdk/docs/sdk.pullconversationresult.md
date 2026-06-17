@@ -47,7 +47,7 @@ Description
 
 </td><td>
 
-[Platform](./sdk.platform.md)
+[ChatPlatform](./sdk.chatplatform.md)
 
 
 </td><td>

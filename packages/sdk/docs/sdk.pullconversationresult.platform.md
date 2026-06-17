@@ -7,5 +7,5 @@
 **Signature:**
 
 ```typescript
-readonly platform: Platform;
+readonly platform: ChatPlatform;
 ```

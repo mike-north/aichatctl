@@ -461,7 +461,13 @@ export class AppleScriptDriver implements Driver {
     if (!r.ok) {
       throw new AichatctlError(`Conversation read failed: ${r.why ?? "unknown"} (calibration).`);
     }
-    return { url: r.url ?? conv.url, text: r.text ?? "" };
+    // Enforce the contract: an `ok` result must carry non-empty text. A blank
+    // message means the selectors matched the wrong element — surface it as a
+    // calibration failure rather than silently returning "".
+    if (r.text === undefined || r.text.length === 0) {
+      throw new AichatctlError("Conversation read returned an empty message (calibration).");
+    }
+    return { url: r.url ?? conv.url, text: r.text };
   }
 
   /**
