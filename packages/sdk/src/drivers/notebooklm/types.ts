@@ -83,10 +83,13 @@ export function coerceArtifactType(raw: string): NotebookArtifactType {
 /**
  * Maps a tile's raw status text to a {@link NotebookArtifactState}. Failure cues
  * are checked before generating cues (so "Error generating…" reads as failed); a
- * tile with no progress/error text is treated as a settled, ready artifact.
+ * tile with no progress/error text is treated as a settled, ready artifact. The
+ * generating vocabulary errs wide (queued/pending/rendering/waiting) so an
+ * in-flight artifact is never reported `ready` prematurely — the exact statuses
+ * are confirmed during live calibration.
  */
 export function normalizeArtifactState(raw: string): NotebookArtifactState {
   if (/fail|error/i.test(raw)) return "failed";
-  if (/generat|loading|creating|progress/i.test(raw)) return "generating";
+  if (/generat|loading|creating|progress|queue|pending|render|wait/i.test(raw)) return "generating";
   return "ready";
 }

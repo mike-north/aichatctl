@@ -68,6 +68,12 @@ describe("normalizeArtifactState", () => {
     expect(normalizeArtifactState("Generating…")).toBe("generating");
     expect(normalizeArtifactState("Loading")).toBe("generating");
   });
+  it("treats other in-flight cues (queued/pending/rendering/waiting) as generating", () => {
+    expect(normalizeArtifactState("Queued")).toBe("generating");
+    expect(normalizeArtifactState("Pending")).toBe("generating");
+    expect(normalizeArtifactState("Rendering…")).toBe("generating");
+    expect(normalizeArtifactState("Waiting")).toBe("generating");
+  });
   it("maps failure cues, checked before generating", () => {
     expect(normalizeArtifactState("Failed")).toBe("failed");
     expect(normalizeArtifactState("Error generating audio")).toBe("failed");
