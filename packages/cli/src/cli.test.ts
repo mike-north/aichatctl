@@ -131,4 +131,48 @@ describe("run", () => {
     expect(code).toBe(1);
     expect(err.join("\n")).toMatch(/invalid claude conversation reference/i);
   });
+
+  it("rejects gemini for project create", async () => {
+    const { io, err } = captureIO();
+    const code = await run(argv("project", "create", "--platform", "gemini", "--name", "P"), io);
+    expect(code).toBe(1);
+    expect(err.join("\n")).toMatch(/only claude and chatgpt/i);
+  });
+
+  it("rejects both --instructions and --instructions-file together", async () => {
+    const { io, err } = captureIO();
+    const code = await run(
+      argv(
+        "project",
+        "create",
+        "--platform",
+        "claude",
+        "--name",
+        "P",
+        "--instructions",
+        "a",
+        "--instructions-file",
+        "b.md",
+      ),
+      io,
+    );
+    expect(code).toBe(1);
+    expect(err.join("\n")).toMatch(/at most one of --instructions/);
+  });
+
+  it("requires --name for project create", async () => {
+    const { io } = captureIO();
+    const code = await run(argv("project", "create", "--platform", "claude"), io);
+    expect(code).not.toBe(0);
+  });
+
+  it("rejects an explicitly empty --instructions for project create", async () => {
+    const { io, err } = captureIO();
+    const code = await run(
+      argv("project", "create", "--platform", "claude", "--name", "P", "--instructions", "   "),
+      io,
+    );
+    expect(code).toBe(1);
+    expect(err.join("\n")).toMatch(/non-empty --instructions/);
+  });
 });

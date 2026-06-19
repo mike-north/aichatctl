@@ -41,6 +41,7 @@ export interface ApplescriptDoctorReport {
 // @public
 export class AppleScriptDriver implements Driver {
     constructor(platform: Platform);
+    createProject(name: string): Promise<Project>;
     // (undocumented)
     createSeededSession(project: Project, prompt: string, options: CreateSessionOptions): Promise<SeedResult>;
     // (undocumented)
@@ -139,6 +140,26 @@ export interface CreateNotebookOptions {
     readonly name?: string;
     readonly profile?: ProfileHint;
     readonly skipLoginCheck?: boolean;
+}
+
+// @public
+export function createProject(options: CreateProjectOptions): Promise<CreateProjectResult>;
+
+// @public
+export interface CreateProjectOptions {
+    readonly files?: readonly string[];
+    readonly instructions?: string;
+    readonly name: string;
+    readonly platform: ChatPlatform;
+    readonly skipLoginCheck?: boolean;
+}
+
+// @public
+export interface CreateProjectResult {
+    readonly filesUploaded: readonly string[];
+    readonly instructionsSet: boolean;
+    readonly platform: ChatPlatform;
+    readonly project: Project;
 }
 
 // @public

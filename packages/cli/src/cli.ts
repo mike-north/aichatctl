@@ -8,6 +8,7 @@ import {
   PLATFORMS,
   addNotebookSource,
   createEmptyNotebook,
+  createProject,
   createSeededSession,
   doctorApplescript,
   generateNotebookPodcast,
@@ -43,6 +44,10 @@ function parsePlatform(value: string): Platform {
     return value as Platform;
   }
   throw new InvalidArgumentError(`platform must be one of: ${PLATFORMS.join(", ")}`);
+}
+
+function collectRepeatable(value: string, previous: string[]): string[] {
+  return [...previous, value];
 }
 
 function emit(io: IO, json: boolean, human: string, data: unknown): void {
@@ -130,6 +135,65 @@ export function buildProgram(io: IO = defaultIO): Command {
         : "(no projects found)";
       emit(io, opts.json, human, projects);
     });
+
+  // project create -------------------------------------------------------------
+  project
+    .command("create")
+    .description("Create a project, optionally with instructions and seed files")
+    .requiredOption("--platform <platform>", "claude | chatgpt", parsePlatform)
+    .requiredOption("--name <name>", "name for the new project")
+    .option("--instructions <text>", "custom instructions text")
+    .option("--instructions-file <path>", 'read instructions from a file ("-" for stdin)')
+    .option(
+      "--file <path>",
+      "local file to upload into the project (repeatable)",
+      collectRepeatable,
+      [],
+    )
+    .option("--json", "machine-readable output", false)
+    .action(
+      async (opts: {
+        platform: Platform;
+        name: string;
+        instructions?: string;
+        instructionsFile?: string;
+        file: string[];
+        json: boolean;
+      }) => {
+        if (opts.platform === "gemini") {
+          throw new AichatctlError("project create supports only claude and chatgpt.");
+        }
+        if (opts.instructions !== undefined && opts.instructionsFile !== undefined) {
+          throw new AichatctlError("Provide at most one of --instructions or --instructions-file.");
+        }
+        const instructions =
+          opts.instructionsFile !== undefined
+            ? readPromptSource(opts.instructionsFile)
+            : opts.instructions;
+        // If the user explicitly supplied an instructions source, fail loudly on
+        // empty content rather than silently creating the project with none.
+        if (instructions?.trim().length === 0) {
+          throw new AichatctlError(
+            opts.instructionsFile !== undefined
+              ? `The --instructions-file "${opts.instructionsFile}" is empty.`
+              : "Provide non-empty --instructions text.",
+          );
+        }
+        const result = await createProject({
+          platform: opts.platform,
+          name: opts.name,
+          ...(instructions !== undefined ? { instructions } : {}),
+          ...(opts.file.length > 0 ? { files: opts.file } : {}),
+        });
+        const human =
+          `Created project "${result.project.name}": ${result.project.url}` +
+          (result.instructionsSet ? " (instructions set)" : "") +
+          (result.filesUploaded.length > 0
+            ? ` (+${String(result.filesUploaded.length)} file(s))`
+            : "");
+        emit(io, opts.json, human, result);
+      },
+    );
 
   // sync -----------------------------------------------------------------------
   program

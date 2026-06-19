@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { basename } from "node:path";
 
 import { resolveProfile } from "./applescript/profile.js";
 import type { ProfileHint } from "./applescript/profile.js";
@@ -407,4 +408,57 @@ export async function pullConversation(
   }
   const { url, text } = await driver.getLastAssistantMessage(options.conversation);
   return { platform: options.platform, url, text };
+}
+
+/** Options for {@link createProject}. */
+export interface CreateProjectOptions {
+  /** Target platform — only Claude and ChatGPT have a project library. */
+  readonly platform: ChatPlatform;
+  /** Name for the new project. */
+  readonly name: string;
+  /** Optional custom instructions to set after creation. */
+  readonly instructions?: string;
+  /** Optional local files to upload into the new project. */
+  readonly files?: readonly string[];
+  /** Skip the logged-in precondition check. */
+  readonly skipLoginCheck?: boolean;
+}
+
+/** Result of {@link createProject}. */
+export interface CreateProjectResult {
+  /** The platform the project was created on. */
+  readonly platform: ChatPlatform;
+  /** The newly created project (id, name, URL). */
+  readonly project: Project;
+  /** Whether custom instructions were set after creation. */
+  readonly instructionsSet: boolean;
+  /** Base names of the files uploaded into the new project, in upload order. */
+  readonly filesUploaded: readonly string[];
+}
+
+/**
+ * Creates a Claude/ChatGPT project, then (best-effort, in order) sets its
+ * instructions and uploads any seed files. The project is created first and
+ * persists even if a later step fails. AppleScript transport only (macOS).
+ */
+export async function createProject(options: CreateProjectOptions): Promise<CreateProjectResult> {
+  if (options.name.trim().length === 0) {
+    throw new AichatctlError("Provide a non-empty --name.");
+  }
+  const driver = new AppleScriptDriver(options.platform);
+  if (options.skipLoginCheck !== true && !(await driver.isLoggedIn())) {
+    throw new NotLoggedInError(options.platform);
+  }
+  const project = await driver.createProject(options.name);
+  let instructionsSet = false;
+  if (options.instructions !== undefined && options.instructions.trim().length > 0) {
+    await driver.setProjectInstructions(project, options.instructions);
+    instructionsSet = true;
+  }
+  const filesUploaded: string[] = [];
+  for (const file of options.files ?? []) {
+    await driver.uploadProjectFile(project, file);
+    filesUploaded.push(basename(file));
+  }
+  return { platform: options.platform, project, instructionsSet, filesUploaded };
 }
