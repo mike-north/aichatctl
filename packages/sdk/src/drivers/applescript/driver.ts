@@ -5,6 +5,7 @@ import { evalInChromeTab } from "../../applescript/runner.js";
 import { AichatctlError, ProjectNotFoundError, UnsupportedOperationError } from "../../errors.js";
 import type { Platform, Project, RemoteFile, SeedResult } from "../../types.js";
 import type { CreateSessionOptions, Driver } from "../driver.js";
+import { parseConversationRef, scriptLastAssistantMessage } from "./conversation.js";
 
 const MIME_BY_EXT: Record<string, string> = {
   ".md": "text/markdown",
@@ -441,6 +442,32 @@ export class AppleScriptDriver implements Driver {
       if (url !== startUrl && /\/(chat|c)\//.test(url)) break;
     }
     return { url, sent: true };
+  }
+
+  /**
+   * Reads the latest assistant message from a Claude/ChatGPT conversation.
+   * AppleScript transport only; Gemini is unsupported.
+   */
+  public async getLastAssistantMessage(ref: string): Promise<{ url: string; text: string }> {
+    if (this.platform === "gemini") {
+      throw new UnsupportedOperationError("gemini", "getLastAssistantMessage");
+    }
+    const conv = parseConversationRef(this.platform, ref);
+    const r = (await this.#eval(
+      conv.matchUrl,
+      conv.url,
+      scriptLastAssistantMessage(this.platform),
+    )) as { ok: boolean; text?: string; url?: string; why?: string };
+    if (!r.ok) {
+      throw new AichatctlError(`Conversation read failed: ${r.why ?? "unknown"} (calibration).`);
+    }
+    // Enforce the contract: an `ok` result must carry non-empty text. A blank
+    // message means the selectors matched the wrong element — surface it as a
+    // calibration failure rather than silently returning "".
+    if (r.text === undefined || r.text.length === 0) {
+      throw new AichatctlError("Conversation read returned an empty message (calibration).");
+    }
+    return { url: r.url ?? conv.url, text: r.text };
   }
 
   /**

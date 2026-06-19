@@ -387,6 +387,17 @@ True when a plan contains at least one mutating step.
 </td></tr>
 <tr><td>
 
+[pullConversation(options)](./sdk.pullconversation.md)
+
+
+</td><td>
+
+Reads the latest assistant message from a Claude/ChatGPT conversation back to the caller, by driving the user's real, logged-in Chrome via AppleScript (macOS). Only Claude and ChatGPT are supported (see [ChatPlatform](./sdk.chatplatform.md)<!-- -->).
+
+
+</td></tr>
+<tr><td>
+
 [readPromptSource(source)](./sdk.readpromptsource.md)
 
 
@@ -530,7 +541,7 @@ Result of [addNotebookSource()](./sdk.addnotebooksource.md)<!-- -->.
 
 </td><td>
 
-Readiness report for `doctor --transport applescript`<!-- -->.
+Readiness report for `aichatctl doctor`<!-- -->.
 
 
 </td></tr>
@@ -778,6 +789,28 @@ Identifies a project either by its display name or by URL/id.
 </td></tr>
 <tr><td>
 
+[PullConversationOptions](./sdk.pullconversationoptions.md)
+
+
+</td><td>
+
+Options for [pullConversation()](./sdk.pullconversation.md)<!-- -->.
+
+
+</td></tr>
+<tr><td>
+
+[PullConversationResult](./sdk.pullconversationresult.md)
+
+
+</td><td>
+
+Result of [pullConversation()](./sdk.pullconversation.md)<!-- -->.
+
+
+</td></tr>
+<tr><td>
+
 [RemoteFile](./sdk.remotefile.md)
 
 
@@ -992,6 +1025,17 @@ Audio Overview format ("podcast type") — the Format cards in the dialog.
 </td><td>
 
 Audio Overview length control.
+
+
+</td></tr>
+<tr><td>
+
+[ChatPlatform](./sdk.chatplatform.md)
+
+
+</td><td>
+
+Chat platforms that support conversation read-back.
 
 
 </td></tr>

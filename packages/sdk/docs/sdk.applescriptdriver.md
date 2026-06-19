@@ -137,6 +137,20 @@ Description
 </td></tr>
 <tr><td>
 
+[getLastAssistantMessage(ref)](./sdk.applescriptdriver.getlastassistantmessage.md)
+
+
+</td><td>
+
+
+</td><td>
+
+Reads the latest assistant message from a Claude/ChatGPT conversation. AppleScript transport only; Gemini is unsupported.
+
+
+</td></tr>
+<tr><td>
+
 [getProjectFiles(project)](./sdk.applescriptdriver.getprojectfiles.md)
 
 

@@ -14,6 +14,7 @@ export { configDir } from "./config.js";
 
 export type { Driver, CreateSessionOptions } from "./drivers/driver.js";
 export { AppleScriptDriver } from "./drivers/applescript/driver.js";
+export type { ChatPlatform } from "./drivers/applescript/conversation.js";
 export { NotebookLmDriver } from "./drivers/notebooklm/driver.js";
 export type { Notebook } from "./drivers/notebooklm/driver.js";
 export {

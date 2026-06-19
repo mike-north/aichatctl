@@ -45,6 +45,10 @@ export class AppleScriptDriver implements Driver {
     createSeededSession(project: Project, prompt: string, options: CreateSessionOptions): Promise<SeedResult>;
     // (undocumented)
     deleteProjectFile(project: Project, remoteName: string): Promise<void>;
+    getLastAssistantMessage(ref: string): Promise<{
+        url: string;
+        text: string;
+    }>;
     // (undocumented)
     getProjectFiles(project: Project): Promise<RemoteFile[]>;
     // (undocumented)
@@ -99,6 +103,9 @@ export interface AudioOverviewOptions {
     readonly length: AudioOverviewLength;
     readonly prompt?: string;
 }
+
+// @public
+export type ChatPlatform = "claude" | "chatgpt";
 
 // @public
 export interface ChromeProfile {
@@ -405,6 +412,26 @@ export interface ProjectRef {
     // (undocumented)
     readonly platform: Platform;
     readonly project: string;
+}
+
+// @public
+export function pullConversation(options: PullConversationOptions): Promise<PullConversationResult>;
+
+// @public
+export interface PullConversationOptions {
+    readonly conversation: string;
+    readonly platform: ChatPlatform;
+    readonly skipLoginCheck?: boolean;
+}
+
+// @public
+export interface PullConversationResult {
+    // (undocumented)
+    readonly platform: ChatPlatform;
+    // (undocumented)
+    readonly text: string;
+    // (undocumented)
+    readonly url: string;
 }
 
 // @public

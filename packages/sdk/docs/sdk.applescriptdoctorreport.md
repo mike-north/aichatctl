@@ -4,7 +4,7 @@
 
 ## ApplescriptDoctorReport interface
 
-Readiness report for `doctor --transport applescript`<!-- -->.
+Readiness report for `aichatctl doctor`<!-- -->.
 
 **Signature:**
 
