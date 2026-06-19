@@ -110,12 +110,12 @@ Name for the new project.
 
 </td><td>
 
-[Platform](./sdk.platform.md)
+[ChatPlatform](./sdk.chatplatform.md)
 
 
 </td><td>
 
-Target platform (claude \| chatgpt).
+Target platform — only Claude and ChatGPT have a project library.
 
 
 </td></tr>

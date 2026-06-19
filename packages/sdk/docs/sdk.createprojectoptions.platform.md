@@ -4,10 +4,10 @@
 
 ## CreateProjectOptions.platform property
 
-Target platform (claude \| chatgpt).
+Target platform — only Claude and ChatGPT have a project library.
 
 **Signature:**
 
 ```typescript
-readonly platform: Platform;
+readonly platform: ChatPlatform;
 ```

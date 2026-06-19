@@ -9,5 +9,5 @@ The platform the project was created on.
 **Signature:**
 
 ```typescript
-readonly platform: Platform;
+readonly platform: ChatPlatform;
 ```

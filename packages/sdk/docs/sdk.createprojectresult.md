@@ -89,7 +89,7 @@ Whether custom instructions were set after creation.
 
 </td><td>
 
-[Platform](./sdk.platform.md)
+[ChatPlatform](./sdk.chatplatform.md)
 
 
 </td><td>

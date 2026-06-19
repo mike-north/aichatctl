@@ -150,7 +150,7 @@ export interface CreateProjectOptions {
     readonly files?: readonly string[];
     readonly instructions?: string;
     readonly name: string;
-    readonly platform: Platform;
+    readonly platform: ChatPlatform;
     readonly skipLoginCheck?: boolean;
 }
 
@@ -158,7 +158,7 @@ export interface CreateProjectOptions {
 export interface CreateProjectResult {
     readonly filesUploaded: readonly string[];
     readonly instructionsSet: boolean;
-    readonly platform: Platform;
+    readonly platform: ChatPlatform;
     readonly project: Project;
 }
 

@@ -412,8 +412,8 @@ export async function pullConversation(
 
 /** Options for {@link createProject}. */
 export interface CreateProjectOptions {
-  /** Target platform (claude | chatgpt). */
-  readonly platform: Platform;
+  /** Target platform — only Claude and ChatGPT have a project library. */
+  readonly platform: ChatPlatform;
   /** Name for the new project. */
   readonly name: string;
   /** Optional custom instructions to set after creation. */
@@ -427,7 +427,7 @@ export interface CreateProjectOptions {
 /** Result of {@link createProject}. */
 export interface CreateProjectResult {
   /** The platform the project was created on. */
-  readonly platform: Platform;
+  readonly platform: ChatPlatform;
   /** The newly created project (id, name, URL). */
   readonly project: Project;
   /** Whether custom instructions were set after creation. */
@@ -442,9 +442,6 @@ export interface CreateProjectResult {
  * persists even if a later step fails. AppleScript transport only (macOS).
  */
 export async function createProject(options: CreateProjectOptions): Promise<CreateProjectResult> {
-  if (options.platform === "gemini") {
-    throw new AichatctlError("project create supports only claude and chatgpt.");
-  }
   if (options.name.trim().length === 0) {
     throw new AichatctlError("Provide a non-empty --name.");
   }
