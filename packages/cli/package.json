@@ -1,6 +1,6 @@
 {
   "name": "aichatctl",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "CLI to drive the Claude.ai, ChatGPT, Gemini, and NotebookLM web UIs: sync project files, seed chat sessions, and create podcasts.",
   "license": "MIT",
   "author": "Mike North <michael.l.north@gmail.com>",

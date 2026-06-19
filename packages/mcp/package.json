@@ -1,6 +1,6 @@
 {
   "name": "@aichatctl/mcp",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "MCP server exposing aichatctl operations (sync, seed session, NotebookLM podcast, doctor) as agent tools.",
   "license": "MIT",
   "author": "Mike North <michael.l.north@gmail.com>",

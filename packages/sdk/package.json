@@ -1,6 +1,6 @@
 {
   "name": "@aichatctl/sdk",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Core engine for driving the Claude.ai, ChatGPT, Gemini, and NotebookLM web UIs: platform drivers, transports, and the file-sync engine.",
   "license": "MIT",
   "author": "Mike North <michael.l.north@gmail.com>",
